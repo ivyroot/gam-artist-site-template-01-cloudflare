@@ -255,7 +255,6 @@ function Home({ data }: { data: Catalog }) {
             by the artist and covered by one display license. As the artist adds to it, your
             collection grows too.
           </p>
-          <small>Contents can change. Your access follows current membership.</small>
         </div>
         <div className="collection-list">
           {collections.length ? (
@@ -288,8 +287,9 @@ function Home({ data }: { data: Catalog }) {
           <span>01 / BUY ONCHAIN</span>
           <h3>Buy a Display License from the artist</h3>
           <p>
-            Buy your display license straight from the artist. The Tezos blockchain records your
-            license for everyone to verify.
+            Buy your display license straight from the artist using the Global Art Market (GAM)
+            smart contract on Tezos. The Tezos blockchain records your license so it is secure and
+            verifiable.
           </p>
         </div>
         <div>
