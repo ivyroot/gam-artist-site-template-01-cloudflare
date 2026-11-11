@@ -1,0 +1,14 @@
+{
+  "name": "An independent studio",
+  "tagline": "Art to live with.",
+  "bio": "Original digital works, directly from the artist. Collect a work you love, or follow a collection as it grows.",
+  "artist": "",
+  "contract": "",
+  "chainId": "",
+  "rpc": "",
+  "indexer": "",
+  "origin": "http://localhost:5173",
+  "websiteId": "0",
+  "workerName": "gam-artist-site",
+  "explorer": ""
+}

@@ -1,0 +1,311 @@
+{
+  "prim": "or",
+  "args": [
+    {
+      "prim": "pair",
+      "annots": ["%review"],
+      "args": [
+        {
+          "prim": "address",
+          "annots": ["%artist"]
+        },
+        {
+          "prim": "pair",
+          "args": [
+            {
+              "prim": "or",
+              "annots": ["%target"],
+              "args": [
+                {
+                  "prim": "nat",
+                  "annots": ["%listing"]
+                },
+                {
+                  "prim": "nat",
+                  "annots": ["%collection"]
+                }
+              ]
+            },
+            {
+              "prim": "pair",
+              "args": [
+                {
+                  "prim": "option",
+                  "annots": ["%rating"],
+                  "args": [
+                    {
+                      "prim": "nat"
+                    }
+                  ]
+                },
+                {
+                  "prim": "option",
+                  "annots": ["%comment"],
+                  "args": [
+                    {
+                      "prim": "bytes"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prim": "or",
+      "args": [
+        {
+          "prim": "pair",
+          "annots": ["%purchase"],
+          "args": [
+            {
+              "prim": "address",
+              "annots": ["%artist"]
+            },
+            {
+              "prim": "pair",
+              "args": [
+                {
+                  "prim": "or",
+                  "annots": ["%target"],
+                  "args": [
+                    {
+                      "prim": "nat",
+                      "annots": ["%listing"]
+                    },
+                    {
+                      "prim": "nat",
+                      "annots": ["%collection"]
+                    }
+                  ]
+                },
+                {
+                  "prim": "pair",
+                  "args": [
+                    {
+                      "prim": "or",
+                      "annots": ["%tier"],
+                      "args": [
+                        {
+                          "prim": "unit",
+                          "annots": ["%personal"]
+                        },
+                        {
+                          "prim": "unit",
+                          "annots": ["%commercial"]
+                        }
+                      ]
+                    },
+                    {
+                      "prim": "nat",
+                      "annots": ["%quantity"]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "prim": "or",
+          "args": [
+            {
+              "prim": "pair",
+              "annots": ["%set_collection_item"],
+              "args": [
+                {
+                  "prim": "nat",
+                  "annots": ["%collection_id"]
+                },
+                {
+                  "prim": "pair",
+                  "args": [
+                    {
+                      "prim": "nat",
+                      "annots": ["%listing_id"]
+                    },
+                    {
+                      "prim": "bool",
+                      "annots": ["%included"]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "prim": "or",
+              "args": [
+                {
+                  "prim": "pair",
+                  "annots": ["%set_collection"],
+                  "args": [
+                    {
+                      "prim": "nat",
+                      "annots": ["%collection_id"]
+                    },
+                    {
+                      "prim": "pair",
+                      "args": [
+                        {
+                          "prim": "bytes",
+                          "annots": ["%title"]
+                        },
+                        {
+                          "prim": "pair",
+                          "args": [
+                            {
+                              "prim": "bytes",
+                              "annots": ["%description"]
+                            },
+                            {
+                              "prim": "pair",
+                              "args": [
+                                {
+                                  "prim": "mutez",
+                                  "annots": ["%personal_display_price"]
+                                },
+                                {
+                                  "prim": "pair",
+                                  "args": [
+                                    {
+                                      "prim": "mutez",
+                                      "annots": ["%commercial_display_price"]
+                                    },
+                                    {
+                                      "prim": "pair",
+                                      "args": [
+                                        {
+                                          "prim": "nat",
+                                          "annots": ["%website_id"]
+                                        },
+                                        {
+                                          "prim": "bool",
+                                          "annots": ["%active"]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "prim": "or",
+                  "args": [
+                    {
+                      "prim": "pair",
+                      "annots": ["%list"],
+                      "args": [
+                        {
+                          "prim": "nat",
+                          "annots": ["%listing_id"]
+                        },
+                        {
+                          "prim": "pair",
+                          "args": [
+                            {
+                              "prim": "bytes",
+                              "annots": ["%title"]
+                            },
+                            {
+                              "prim": "pair",
+                              "args": [
+                                {
+                                  "prim": "bytes",
+                                  "annots": ["%item_type"]
+                                },
+                                {
+                                  "prim": "pair",
+                                  "args": [
+                                    {
+                                      "prim": "bytes",
+                                      "annots": ["%description"]
+                                    },
+                                    {
+                                      "prim": "pair",
+                                      "args": [
+                                        {
+                                          "prim": "mutez",
+                                          "annots": ["%personal_display_price"]
+                                        },
+                                        {
+                                          "prim": "pair",
+                                          "args": [
+                                            {
+                                              "prim": "mutez",
+                                              "annots": ["%commercial_display_price"]
+                                            },
+                                            {
+                                              "prim": "pair",
+                                              "args": [
+                                                {
+                                                  "prim": "nat",
+                                                  "annots": ["%website_id"]
+                                                },
+                                                {
+                                                  "prim": "pair",
+                                                  "args": [
+                                                    {
+                                                      "prim": "bool",
+                                                      "annots": ["%active"]
+                                                    },
+                                                    {
+                                                      "prim": "bytes",
+                                                      "annots": ["%file_hash"]
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "prim": "or",
+                      "args": [
+                        {
+                          "prim": "pair",
+                          "annots": ["%set_website"],
+                          "args": [
+                            {
+                              "prim": "nat",
+                              "annots": ["%website_id"]
+                            },
+                            {
+                              "prim": "string",
+                              "annots": ["%url"]
+                            }
+                          ]
+                        },
+                        {
+                          "prim": "bytes",
+                          "annots": ["%set_name"]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

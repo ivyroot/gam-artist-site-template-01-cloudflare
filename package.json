@@ -1,0 +1,50 @@
+{
+  "name": "gam-artist-site-template",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-only",
+  "engines": {
+    "node": "^24.22.0 || ^26.12.0"
+  },
+  "scripts": {
+    "dev": "cf dev",
+    "build": "cf build",
+    "typecheck": "cf workers types && tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm test && npm run build",
+    "deploy": "npm run typecheck && cf deploy",
+    "deploy:dry-run": "cf deploy --dry-run",
+    "types": "cf workers types",
+    "db:local": "node scripts/database.mjs",
+    "seed": "node scripts/seed.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test:tezbox": "GAM_TEZBOX_TEST=1 vitest run tests/tezbox-live.test.ts",
+    "inspect:tezbox": "node scripts/inspect-tezbox.mjs"
+  },
+  "dependencies": {
+    "@ecadlabs/beacon-types": "4.8.5-ecad",
+    "@taquito/beacon-wallet": "25.1.1",
+    "@taquito/taquito": "25.1.1",
+    "@taquito/utils": "25.1.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "2.0.0-beta.v.14",
+    "@cloudflare/vitest-plugin": "1.7.0",
+    "@taquito/michel-codec": "25.1.1",
+    "@taquito/michelson-encoder": "25.1.1",
+    "@taquito/signer": "25.1.1",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "cf": "1.0.0-beta.29",
+    "prettier": "3.9.10",
+    "typescript": "^5.9.0",
+    "vite": "^7.3.0",
+    "vitest": "^4.0.0"
+  }
+}
