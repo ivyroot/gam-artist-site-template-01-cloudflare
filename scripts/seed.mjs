@@ -11,7 +11,7 @@ const works = [
     'Quiet Geometry',
     'Digital composition',
     'Example Artwork 1 pairs warm paper tones with an ornate embossed border and simple ink lettering. Its restrained composition leaves room to breathe, bringing a quiet sense of balance to the space around it.',
-    '/samples/quiet-geometry.svg',
+    '/samples/quiet-geometry.webp',
     '1500000',
   ],
   [
@@ -19,7 +19,7 @@ const works = [
     'The long way home',
     'Digital composition',
     'Example Artwork 2 combines soft sage paper, charcoal lettering, and the delicate relief of an embossed frame. The muted green palette offers a gentle change of pace, inviting a longer look at its texture and detail.',
-    '/samples/long-way-home.svg',
+    '/samples/long-way-home.webp',
     '2000000',
   ],
   [
@@ -27,7 +27,7 @@ const works = [
     'Almost a garden',
     'Digital composition',
     'Example Artwork 3 sets understated ink lettering against warm terracotta paper and a decorative embossed border. Earthy color and fine details give this sample a welcoming presence, adding a little warmth to an everyday corner.',
-    '/samples/almost-a-garden.svg',
+    '/samples/almost-a-garden.webp',
     '1500000',
   ],
 ];

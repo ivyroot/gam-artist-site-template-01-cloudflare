@@ -21,7 +21,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:tezbox": "GAM_TEZBOX_TEST=1 vitest run tests/tezbox-live.test.ts",
-    "inspect:tezbox": "node scripts/inspect-tezbox.mjs"
+    "inspect:tezbox": "node scripts/inspect-tezbox.mjs",
+    "samples:export": "node scripts/export-samples.mjs",
+    "samples:previews": "node scripts/export-samples.mjs --previews-only"
   },
   "dependencies": {
     "@ecadlabs/beacon-types": "4.8.5-ecad",
@@ -43,6 +45,7 @@
     "@vitejs/plugin-react": "^5.0.0",
     "cf": "1.0.0-beta.29",
     "prettier": "3.9.10",
+    "sharp": "0.35.5",
     "typescript": "^5.9.0",
     "vite": "^7.3.0",
     "vitest": "^4.0.0"

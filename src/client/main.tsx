@@ -9,7 +9,7 @@ const href = (w: Work) => `/${w.kind}/${w.id}`;
 const initial: Catalog = {
   config: {
     name: 'An independent studio',
-    tagline: 'Art to live with.',
+    tagline: 'Enjoy Displaying Art',
     bio: 'Original digital works, directly from the artist.',
     artist: '',
     contract: '',
@@ -203,7 +203,6 @@ function Home({ data }: { data: Catalog }) {
               Selected works <sup>{String(listings.length).padStart(2, '0')}</sup>
             </h2>
           </div>
-          <p>Find a place for something original.</p>
         </div>
         <div className="filters" aria-label="Filter works">
           {types.map((type) => (

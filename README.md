@@ -23,6 +23,10 @@ npm run dev
 
 Open the printed URL, normally `http://localhost:5173`. Use the same hostname as `site.config.json` when testing authentication. Sample data has no originals or real licenses and cannot enable checkout. `npm run seed -- --clear` removes the sample catalog from the local database; only use it while the template is unconfigured.
 
+## Sample artwork exports
+
+The sample artworks have high-resolution JPEG originals for delivery and smaller WebP previews for the website. Editable SVG masters stay outside public assets. Run `npm run samples:export` to regenerate both, or `npm run samples:previews` to rebuild previews from the raster originals. See [sample artwork files](sample-artworks/README.md) for paths and specifications.
+
 ## What is implemented
 
 - Responsive catalog, artwork and collection pages, license prices, quantities, reviews, and a wallet-linked library.
