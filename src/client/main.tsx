@@ -283,23 +283,27 @@ function Home({ data }: { data: Catalog }) {
         </div>
       </section>
       <section className="principles">
+        <h2 className="how-it-works-title">How it Works</h2>
         <div>
-          <span>01 / DIRECT</span>
-          <h3>From one artist to you.</h3>
-          <p>Your purchase goes to the artist’s wallet. The shared contract takes no commission.</p>
-        </div>
-        <div>
-          <span>02 / YOURS TO KEEP</span>
-          <h3>A file. A display license.</h3>
+          <span>01 / BUY ONCHAIN</span>
+          <h3>Buy a Display License from the artist</h3>
           <p>
-            Download the original for your own space or commercial project. Choose the license that
-            fits.
+            Buy your display license straight from the artist. The Tezos blockchain records your
+            license for everyone to verify.
           </p>
         </div>
         <div>
-          <span>03 / OPEN BY DESIGN</span>
-          <h3>Trust you can verify.</h3>
-          <p>Your license is recorded on Tezos. Every original has an immutable file hash.</p>
+          <span>02 / DOWNLOAD</span>
+          <h3>Download the artwork files</h3>
+          <p>
+            Download your artworks from the artist’s website. It checks your license on Tezos
+            before delivering your downloads.
+          </p>
+        </div>
+        <div>
+          <span>03 / DISPLAY</span>
+          <h3>Display art in your home!</h3>
+          <p>Display artworks in your home and add new perspectives to your life.</p>
         </div>
       </section>
     </>
