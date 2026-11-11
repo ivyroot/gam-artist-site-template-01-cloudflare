@@ -8,7 +8,7 @@ import './style.css';
 const href = (w: Work) => `/${w.kind}/${w.id}`;
 const initial: Catalog = {
   config: {
-    name: 'An independent studio',
+    name: 'An independent artist',
     tagline: 'Enjoy Displaying Art',
     bio: 'Original digital works, directly from the artist.',
     artist: '',
@@ -158,7 +158,7 @@ function App() {
           <p>Art belongs in your everyday.</p>
         </div>
         <div>
-          Owned by the artist. Collected by you.
+          Owned by the artist. Displayed by you.
           <br />
           <small>Display licenses on Tezos · Downloads delivered here.</small>
         </div>
@@ -192,7 +192,7 @@ function Home({ data }: { data: Catalog }) {
             A little less scrolling.
             <br />A little more looking.
           </p>
-          <span className="caption">MADE TO BE COLLECTED, NOT TRADED.</span>
+          <span className="caption">MADE TO BE DISPLAYED, NOT TRADED.</span>
         </div>
       </section>
       <section id="works">
@@ -251,8 +251,9 @@ function Home({ data }: { data: Catalog }) {
             More to discover.
           </h2>
           <p>
-            Collect a group of works in one purchase. As the artist adds to it, your collection
-            grows too.
+            Acquire a collection of works in one purchase. A collection is a set of artworks chosen
+            by the artist and covered by one display license. As the artist adds to it, your
+            collection grows too.
           </p>
           <small>Contents can change. Your access follows current membership.</small>
         </div>
@@ -295,8 +296,8 @@ function Home({ data }: { data: Catalog }) {
           <span>02 / DOWNLOAD</span>
           <h3>Download the artwork files</h3>
           <p>
-            Download your artworks from the artist’s website. It checks your license on Tezos
-            before delivering your downloads.
+            Download your artworks from the artist’s website. It checks your license on Tezos before
+            delivering your downloads.
           </p>
         </div>
         <div>
@@ -433,7 +434,7 @@ function Detail({ work: w, data, user, busy, act, signIn, setNotice }: Common & 
               ? 'Sale closed'
               : BigInt(price) === 0n
                 ? 'This tier is unavailable'
-                : 'Collect this ' + w.kind + ' ↗'}
+                : 'Purchase this ' + w.kind + ' ↗'}
           </button>
           <p className="fine">
             Wallet fees are additional. A non-transferable display license and download. No edition
@@ -453,7 +454,7 @@ function Detail({ work: w, data, user, busy, act, signIn, setNotice }: Common & 
             className="button secondary full"
             href={`/download/${w.kind === 'collection' ? 'collection/' : ''}${w.id}`}
           >
-            Already collected? Open downloads ↓
+            Already purchased? Open downloads ↓
           </a>
           {w.kind === 'collection' && (
             <p className="fine">
@@ -493,7 +494,7 @@ function Detail({ work: w, data, user, busy, act, signIn, setNotice }: Common & 
       )}
       <section className="reviews">
         <div>
-          <p className="eyebrow">FROM COLLECTORS</p>
+          <p className="eyebrow">FROM REAL BUYERS</p>
           <h2>Notes on the work.</h2>
           <p className="muted">
             Reviews are public on Tezos. You need a direct license for this {w.kind}; reviews open
@@ -1084,8 +1085,8 @@ function Admin({
                       </label>
                     ))}
                   <p className="fine">
-                    Existing collectors receive additions automatically. Removing a work removes
-                    collection-derived access.
+                    Existing collection owners receive additions automatically. Removing a work
+                    removes collection-derived access.
                   </p>
                 </fieldset>
               )}

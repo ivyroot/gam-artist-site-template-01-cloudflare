@@ -54,7 +54,7 @@ if (!process.argv.includes('--clear')) {
   const p = {
     artist: 'SAMPLE',
     collection_id: '0',
-    title: hex('Studies in being here'),
+    title: hex('Collected Examples: Shape and Quiet Attention'),
     description: hex('Three studies in shape and quiet attention.'),
     personal_price: '4000000',
     commercial_price: '25000000',
