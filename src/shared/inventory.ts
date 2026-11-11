@@ -1,6 +1,6 @@
 // Configuration-time validation. Do not import this module into the Worker:
 // the Cloudflare dev plugin blocks configuration dependencies in its dev runner.
-// A blank value is allowed only for the unconfigured template preview.
+// Unset, null, and empty string all disable Inventory in any mode.
 const reserved = new Set([
   'admin',
   'inventory',
@@ -22,7 +22,7 @@ const reserved = new Set([
   'assets',
 ]);
 export function inventoryPage(value: unknown): string | undefined {
-  if (value === undefined || value === '') return undefined;
+  if (value == null || value === '') return undefined;
   if (
     typeof value !== 'string' ||
     !/^\/[a-zA-Z0-9][a-zA-Z0-9_-]{2,79}$/.test(value) ||

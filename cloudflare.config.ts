@@ -1,16 +1,14 @@
 import { bindings, defineConfig, triggers } from 'cf/config';
-import productionSite from './site.config.json' with { type: 'json' };
-import stagingSite from './site.staging.config.json' with { type: 'json' };
-import { inventoryPage } from './src/shared/inventory.ts';
+import { loadSite, runtimeSite, selectMode } from './configuration/site.ts';
 export default defineConfig(({ mode }) => {
-  const site = mode === 'staging' ? stagingSite : productionSite;
-  const inventory = inventoryPage(site.inventoryPage);
-  if ((site.artist || site.contract) && !inventory) {
-    throw new Error(
-      'Choose a custom inventoryPage in the site configuration before configuring an artist deployment.',
-    );
-  }
+  const selected =
+    process.env.GAM_SITE_MODE ||
+    (mode && !['development', 'production', 'test'].includes(mode) ? mode : 'local-dev');
+  const site = loadSite(selectMode(selected));
+  const inventory = site.inventoryPage;
+  const dev = { remote: site.storage === 'cloudflare' };
   return {
+    accountId: site.cloudflareAccountId || undefined,
     worker: {
       name: site.workerName,
       entrypoint: './src/worker/index.ts',
@@ -35,14 +33,20 @@ export default defineConfig(({ mode }) => {
       },
       env: {
         ASSETS: bindings.assets(),
-        SITE_CONFIG: bindings.text(JSON.stringify(site)),
+        SITE_CONFIG: bindings.text(JSON.stringify(runtimeSite(site))),
         SESSION_SECRET: bindings.secret(),
-        DB: bindings.d1({ name: `${site.workerName}-catalog` }),
+        DB: bindings.d1({
+          id: site.databaseId || undefined,
+          name: site.databaseName || undefined,
+          dev,
+        }),
         ART_BUCKET: bindings.r2({
-          name: `${site.workerName}-originals`,
+          name: site.originalsBucket || undefined,
+          dev,
         }),
         PREVIEWS: bindings.r2({
-          name: `${site.workerName}-previews`,
+          name: site.previewsBucket || undefined,
+          dev,
         }),
       },
       triggers: [triggers.scheduled({ schedule: '*/5 * * * *' })],

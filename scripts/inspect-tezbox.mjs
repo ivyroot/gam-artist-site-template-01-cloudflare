@@ -1,6 +1,7 @@
+import { loadSite } from '../configuration/site.ts';
 import { readFileSync } from 'node:fs';
 import { Parser } from '@taquito/michel-codec';
-const rpc = process.env.TEZBOX_RPC ?? 'http://localhost:8732';
+const rpc = process.env.TEZBOX_RPC ?? loadSite('local-dev').rpc;
 const get = async (path) => {
   const r = await fetch(rpc + path);
   if (!r.ok) throw new Error(`RPC ${r.status}: ${path}`);

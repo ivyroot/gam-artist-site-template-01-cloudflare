@@ -71,7 +71,7 @@ export function project(
 export async function catalog(env: Env): Promise<Catalog> {
   const c = config(env);
   // The artist's chosen Inventory URL must not be advertised in public JSON.
-  const { inventoryPage: _inventoryPage, ...publicConfig } = c;
+  const { inventoryPage: _inventoryPage, requestOrigin: _requestOrigin, ...publicConfig } = c;
   const rows = await env.DB.prepare('SELECT * FROM events ORDER BY id').all<{
     id: number;
     level: number;

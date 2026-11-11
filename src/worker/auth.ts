@@ -73,11 +73,7 @@ export async function auth(req: Request, env: Env, path: string) {
     return json({ ok: true }, 200, { 'Set-Cookie': cookie('', 0) });
   }
   const c = config(env);
-  ensure(
-    c.ready,
-    'Configure the artist, network, contract, site origin, and custom inventoryPage before signing in.',
-    503,
-  );
+  ensure(c.ready, 'Configure the artist, network, contract, site origin before signing in.', 503);
   ensure(
     env.SESSION_SECRET && env.SESSION_SECRET.length >= 32,
     'Set a strong SESSION_SECRET before signing in.',
@@ -91,11 +87,13 @@ export async function auth(req: Request, env: Env, path: string) {
       'Use an implicit Tezos wallet address.',
     );
     ensure(role === 'buyer' || role === 'admin', 'Invalid sign-in role.');
-    if (role === 'admin')
+    if (role === 'admin') {
+      ensure(c.inventoryPage, 'Inventory is disabled in this mode.', 404);
       ensure(address === c.artist, 'This wallet is not the configured artist.', 403);
+    }
     const id = crypto.randomUUID(),
       expires = now() + 300;
-    const message = `Tezos Signed Message: GAM sign-in\nOrigin: ${c.origin}\nChain: ${c.chainId}\nContract: ${c.contract}\nAddress: ${address}\nRole: ${role}\nNonce: ${id}\nExpires: ${expires}`;
+    const message = `Tezos Signed Message: GAM sign-in\nOrigin: ${c.requestOrigin || c.origin}\nChain: ${c.chainId}\nContract: ${c.contract}\nAddress: ${address}\nRole: ${role}\nNonce: ${id}\nExpires: ${expires}`;
     const bytes = utf8Hex(message);
     const payload = '050100' + (bytes.length / 2).toString(16).padStart(6, '0') + bytes;
     await env.DB.prepare(
@@ -115,6 +113,20 @@ export async function auth(req: Request, env: Env, path: string) {
       .bind(id, now())
       .first<{ address: string; role: string; payload: string }>();
     ensure(challenge, 'Sign-in challenge expired or already used.', 401);
+    const expected = utf8Hex(
+      `Tezos Signed Message: GAM sign-in\nOrigin: ${c.requestOrigin || c.origin}\nChain: ${c.chainId}\nContract: ${c.contract}\nAddress: ${challenge!.address}\nRole: ${challenge!.role}\nNonce: ${id}\n`,
+    );
+    ensure(
+      challenge!.payload.slice(12).startsWith(expected),
+      'Challenge belongs to a different website or network.',
+      401,
+    );
+    if (challenge!.role === 'admin')
+      ensure(
+        c.inventoryPage && challenge!.address === c.artist,
+        'Inventory is disabled or the artist changed.',
+        403,
+      );
     let valid = false;
     try {
       valid =

@@ -2,7 +2,7 @@
 
 An artist-owned storefront and Tezos DApp, built for Cloudflare Workers with Static Assets, D1, and private R2 storage. Each deployment serves one artist and the shared GAM contract. The artist receives purchases directly; this template never stores wallet keys.
 
-**Status:** first implementation, built and tested locally, including five live integration tests against the existing GAM contract on the running TezBox. Network, artist, and contract settings are intentionally blank for artist deployments. No Cloudflare deployment is bundled. Finish browser-wallet and fresh-account deployment checks in [deployment](docs/deployment.md) before selling work.
+**Status:** first implementation, built and tested locally, including five live integration tests against the existing GAM contract on the running TezBox. Artist and canonical network settings are intentionally blank. The local-dev mode points to the previously verified TezBox GAM contract. No Cloudflare deployment is bundled. Finish browser-wallet and fresh-account deployment checks in [deployment](docs/deployment.md) before selling work.
 
 ## Run locally
 
@@ -10,6 +10,7 @@ Use Node **24.22.0** (`nvm install && nvm use`) or another version accepted by `
 
 ```sh
 npm ci
+cp site.config.json.example site.config.json
 cp .dev.vars.example .dev.vars
 ```
 
@@ -36,13 +37,36 @@ The sample artworks have high-resolution JPEG originals for delivery and smaller
 - Artist registration, multipart original upload, server-side SHA-256 verification, immutable file catalog, previews, metadata, listing edits, and collection membership batches.
 - Direct-license or current-collection-license checks through RPC views before private downloads; original file streaming and verification commands.
 - Paginated TzKT event ingestion with checkpoints, a sync lock, replay/rebuild on detected reorganization, and a five-minute scheduled sync.
-- Local Workers runtime tests, generated binding types, and separate staging configuration/resources.
+- Local Workers runtime tests, generated binding types, and explicit local and Cloudflare modes with separate testnet/mainnet resources.
 
 ## Configure an artist
 
-Edit `site.config.json`; use `site.staging.config.json` for staging. Set a unique `workerName`, artist wallet, shared GAM contract, actual chain ID, RPC/indexer base URLs, explorer base URL, canonical origin, website ID, and a custom `inventoryPage`. No mainnet address is guessed. Branding fields are ordinary configuration.
+`site.config.json.example` is the versioned configuration template. Copy it to `site.config.json` once, then edit that working file for this artist website. Git ignores the working file, so template updates cannot overwrite your settings; new settings appear in the example for you to review and copy as needed. Commands explain this setup step if the working file is missing and never create or overwrite it automatically. Shared branding lives at the top; `modes` contains all five supported running modes:
 
-The artist management area is **Inventory**. Choose its path yourself in `site.config.json`, for example `"inventoryPage": "/stockroom-blue-42"`, and open that URL directly. The template ships with an empty value; an artist deployment cannot build until a custom path is chosen. Use one path segment of 3–80 letters, numbers, hyphens, or underscores, beginning with `/`; standard names such as `/admin` and `/inventory` are rejected. There are no Inventory links on buyer pages, and the path is omitted from public catalog responses. Inventory APIs also use the custom path. Artist wallet authentication remains required. Register the website, upload an original and a reduced public preview, then approve the listing in the artist wallet. Existing IDs edit existing records: choose a new unused ID for a new work or corrected file. Collections are created closed and opened in the same batch that adds their works.
+| Mode                 | Runs on                                                 | Default storage                   |
+| -------------------- | ------------------------------------------------------- | --------------------------------- |
+| `local-dev`          | This computer, with TezBox or another development chain | Local simulation                  |
+| `local-testnet`      | This computer, with canonical Tezos testnet             | Cloudflare testnet shop resources |
+| `local-mainnet`      | This computer, with Tezos mainnet                       | Cloudflare mainnet shop resources |
+| `cloudflare-testnet` | Cloudflare, with canonical Tezos testnet                | Cloudflare testnet shop resources |
+| `cloudflare-mainnet` | Cloudflare, with Tezos mainnet                          | Cloudflare mainnet shop resources |
+
+There is no `cloudflare-dev`. `dev` means a chain outside canonical testnet/mainnet. Each entry explicitly lists its wallet, contract, endpoints, origins, website ID, Worker and storage resources; network settings do not inherit between entries. No official testnet or mainnet GAM address is guessed.
+
+```sh
+npm run dev                          # local-dev
+npm run dev -- local-testnet
+npm run dev -- local-mainnet
+npm run build -- cloudflare-testnet
+npm run deploy:dry-run -- cloudflare-testnet
+npm run deploy -- cloudflare-testnet --secrets-file .env.testnet-secrets
+```
+
+Every entry includes `"inventoryPage": ""`. Missing, `null`, and `""` all mean **Inventory disabled**, without disabling buyer sign-in, purchases, or downloads. To enable it in a mode, choose a custom path such as `/stockroom-blue-42`: one segment of 3–80 letters, numbers, hyphens, or underscores, beginning with `/`. Standard names including `/admin` and `/inventory` are reserved. Its management APIs exist only beneath that custom path. Buyer pages never link to it, and public catalog JSON omits it. Artist wallet authentication is still required.
+
+For local-only Inventory, enable the path in `local-mainnet`, leave it empty in `cloudflare-mainnet`, and point both modes at the same artist, chain, contract, website ID, D1 database, and R2 buckets. `origin` is always the public shop URL registered on Tezos. `localOrigin` is the local browser URL used for sign-in and request checks. Remote storage access uses your local Cloudflare credentials. Local testnet/mainnet modes can instead set `storage` to `local` for an isolated simulation.
+
+Secrets stay outside JSON: use ignored `.dev.vars.<mode>` files locally and Cloudflare secrets for deployment. Prefer a different session secret for each running mode. See the field reference and setup steps in the deployment guide.
 
 See [deployment](docs/deployment.md), [architecture](docs/architecture.md), and [operations](docs/operations.md).
 
@@ -53,7 +77,7 @@ npm run typecheck        # generates .cloudflare/types before checking TypeScrip
 npm test                # real Workers runtime, D1/R2, actual signature verification
 npm run test:tezbox     # optional: signs real operations on the local sandbox
 npm run build           # cf + Vite: Worker bundle and public assets
-npm run deploy:dry-run  # validate deployment output without uploading
+npm run deploy:dry-run -- cloudflare-testnet  # validate deployment output without uploading
 ```
 
 The compiled contract parameter snapshot in `src/chain/parameter-schema.json` comes from the sibling `contracts/gam/out/gam.tz`. Tests validate all seven transaction builders against it. Contract origination, proving, and auditing remain in the contract repository; this template does not deploy contracts.

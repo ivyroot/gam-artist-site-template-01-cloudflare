@@ -25,7 +25,7 @@ Rotate `SESSION_SECRET` using Cloudflare's runtime secrets mechanism or `cf depl
 
 ## Inventory access
 
-Open the custom URL stored in `inventoryPage` in your site configuration. There is no `/admin` fallback and no buyer-facing link. If you forget it, recover it from your local configuration or deployment repository; do not add a public redirect. To change it, edit the configuration and redeploy: the Inventory page and its API routes move together. Sessions still require the configured artist wallet; a custom URL is not a substitute for authorization.
+Open the custom URL stored in the active mode’s `inventoryPage` in `site.config.json`. Missing, null, or empty string disables Inventory and its APIs without affecting buyers. Inventory can run only on your computer while the public Cloudflare mode leaves it disabled; configure both modes to use the same Cloudflare database and buckets. There is no `/admin` fallback and no buyer-facing link. If you forget it, recover it from your working `site.config.json` or its private backup; do not add a public redirect. To change it, edit the configuration and redeploy: the Inventory page and its API routes move together. Sessions still require the configured artist wallet; a custom URL is not a substitute for authorization.
 
 ## Domain migration
 
@@ -43,6 +43,6 @@ The initial catalog replay reads all retained events for one artist. Profile lar
 
 ## Template updates
 
-Preserve each deployment's site configuration, resource IDs, secrets, database, and R2 objects. Read migration notes, back up, run checks, apply new D1 migrations, and validate in staging before upgrading production. Keep the shared GAM contract address under careful review: an unintended change redirects all future purchase calls.
+Back up `site.config.json` privately: it is ignored by Git, and the versioned `.example` does not contain your settings. Preserve resource IDs, secrets, database, and R2 objects too. Read migration notes, back up, run checks, apply new D1 migrations, and validate in staging before upgrading production. Keep the shared GAM contract address under careful review: an unintended change redirects all future purchase calls.
 
-Run `npm run check` and `npm run deploy:dry-run` locally before deploying to Cloudflare. This template has no GitHub Actions or code execution on GitHub; GitHub is only a source repository. Deployment runs through Cloudflare.
+Run `npm run check` and `npm run deploy:dry-run -- cloudflare-testnet` locally before deploying to Cloudflare. This template has no GitHub Actions or code execution on GitHub; GitHub is only a source repository. Deployment runs through Cloudflare.

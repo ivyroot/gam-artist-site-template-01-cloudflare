@@ -13,3 +13,6 @@ coverage/
 .DS_Store
 playwright-report/
 test-results/
+
+# Artist-specific working configuration; keep the example in Git.
+/site.config.json

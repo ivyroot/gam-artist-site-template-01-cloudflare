@@ -23,9 +23,7 @@ export function config(env: Env): SiteConfig {
   // cloudflare.config.ts validates this before constructing SITE_CONFIG.
   // Do not import its validator here: the dev plugin blocks config dependencies.
   const page = typeof c.inventoryPage === 'string' && c.inventoryPage ? c.inventoryPage : undefined;
-  const ready = Boolean(
-    c.artist && c.contract && c.chainId && c.rpc && c.indexer && c.origin && page,
-  );
+  const ready = Boolean(c.artist && c.contract && c.chainId && c.rpc && c.indexer && c.origin);
   return { ...c, inventoryPage: page, ready, demo: !ready };
 }
 export const json = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
@@ -64,7 +62,7 @@ export async function rateLimit(env: Env, key: string, limit = 30) {
 }
 export function sameOrigin(req: Request, env: Env) {
   ensure(
-    req.headers.get('Origin') === config(env).origin,
+    req.headers.get('Origin') === (config(env).requestOrigin || config(env).origin),
     'This request must come from the configured website.',
     403,
   );

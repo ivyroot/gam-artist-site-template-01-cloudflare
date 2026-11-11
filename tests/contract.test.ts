@@ -197,7 +197,7 @@ it('accepts a custom Inventory path and rejects common or unsafe paths', () => {
     expect(() => inventoryPage(invalid)).toThrow();
   }
 });
-it('does not enable artist deployments without a custom inventoryPage', () => {
+it('keeps the shop enabled when Inventory is missing, null or empty', () => {
   const site = {
     artist: 'artist',
     contract: 'contract',
@@ -206,7 +206,11 @@ it('does not enable artist deployments without a custom inventoryPage', () => {
     indexer: 'https://indexer.example',
     origin: 'https://shop.example',
   };
-  expect(config({ SITE_CONFIG: JSON.stringify(site) } as any).ready).toBe(false);
+  for (const inventoryPage of [undefined, null, '']) {
+    const result = config({ SITE_CONFIG: JSON.stringify({ ...site, inventoryPage }) } as any);
+    expect(result.ready).toBe(true);
+    expect(result.inventoryPage).toBeUndefined();
+  }
   expect(
     config({ SITE_CONFIG: JSON.stringify({ ...site, inventoryPage: '/stockroom-blue-42' }) } as any)
       .ready,

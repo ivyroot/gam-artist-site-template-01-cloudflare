@@ -35,6 +35,8 @@ export interface SiteConfig {
   origin: string;
   websiteId: string;
   inventoryPage?: string;
+  requestOrigin?: string;
+  mode?: string;
   ready: boolean;
   demo: boolean;
 }

@@ -108,7 +108,7 @@ function App() {
             Configure the artist and shared contract to enable wallet purchases and publishing.
           </span>
           <span>
-            Choose your Inventory path in <code>site.config.json</code>.
+            Configure the selected mode in <code>site.config.json</code>.
           </span>
         </div>
       )}

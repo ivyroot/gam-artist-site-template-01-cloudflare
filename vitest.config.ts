@@ -1,6 +1,8 @@
 import { defineConfig } from 'vitest/config';
 import { cloudflareTest } from '@cloudflare/vitest-plugin';
 import { readFileSync } from 'node:fs';
+import { loadSite } from './configuration/site.ts';
+const sandbox = loadSite('local-dev');
 const live = process.env.GAM_TEZBOX_TEST === '1';
 let bootstrapKey = '';
 if (live) {
@@ -44,8 +46,8 @@ export default defineConfig({
       tezbox: {
         enabled: live,
         bootstrapKey,
-        rpc: process.env.TEZBOX_RPC ?? 'http://127.0.0.1:8732',
-        contract: process.env.TEZBOX_GAM_ADDRESS ?? 'KT19MWS86sukgSsRaMsgpN6EawvGkx6WNbtV',
+        rpc: process.env.TEZBOX_RPC ?? sandbox.rpc,
+        contract: process.env.TEZBOX_GAM_ADDRESS ?? sandbox.contract,
       },
     },
   },

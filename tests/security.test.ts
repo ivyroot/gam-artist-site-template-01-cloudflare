@@ -392,3 +392,56 @@ describe('custom Inventory routing', () => {
     expect((await call('/private-stockroom/api/status', undefined, admin.cookie)).status).toBe(200);
   });
 });
+
+it.each([undefined, null, ''])(
+  'Inventory disabled (%s) preserves buyer sign-in and hides management',
+  async (inventoryPage) => {
+    const isolated = {
+      ...live,
+      SITE_CONFIG: JSON.stringify({ ...JSON.parse(live.SITE_CONFIG), inventoryPage }),
+    };
+    const invoke = (path: string, body?: unknown) => worker.fetch(request(path, body), isolated);
+    expect((await invoke('/private-stockroom/api/status')).status).toBe(404);
+    expect((await invoke('/api/admin/status')).status).toBe(404);
+    const admin = await invoke('/api/auth/challenge', { address, role: 'admin' });
+    expect(admin.status).toBe(404);
+    const challenge = (await (
+      await invoke('/api/auth/challenge', { address, role: 'buyer' })
+    ).json()) as any;
+    const signature = await signer.sign(challenge.payload);
+    expect(
+      (
+        await invoke('/api/auth/verify', {
+          id: challenge.id,
+          publicKey,
+          signature: signature.prefixSig,
+        })
+      ).status,
+    ).toBe(200);
+    const catalog = await invoke('/api/catalog');
+    expect(catalog.status).toBe(200);
+    const data = (await catalog.json()) as any;
+    expect(data.config.ready).toBe(true);
+    expect(data.config.inventoryPage).toBeUndefined();
+  },
+);
+it('rejects a challenge from another execution origin sharing the same database', async () => {
+  const challenge = (await (
+    await call('/api/auth/challenge', { address, role: 'buyer' })
+  ).json()) as any;
+  const signature = await signer.sign(challenge.payload);
+  const localOrigin = 'http://localhost:5173';
+  const local = {
+    ...live,
+    SITE_CONFIG: JSON.stringify({ ...JSON.parse(live.SITE_CONFIG), requestOrigin: localOrigin }),
+  };
+  const response = await worker.fetch(
+    new Request(localOrigin + '/api/auth/verify', {
+      method: 'POST',
+      headers: { Origin: localOrigin, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: challenge.id, publicKey, signature: signature.prefixSig }),
+    }),
+    local,
+  );
+  expect(response.status).toBe(401);
+});
