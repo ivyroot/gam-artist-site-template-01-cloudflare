@@ -20,8 +20,13 @@ export function ensure(test: unknown, message: string, status = 400): asserts te
 }
 export function config(env: Env): SiteConfig {
   const c = JSON.parse(env.SITE_CONFIG);
-  const ready = Boolean(c.artist && c.contract && c.chainId && c.rpc && c.indexer && c.origin);
-  return { ...c, ready, demo: !ready };
+  // cloudflare.config.ts validates this before constructing SITE_CONFIG.
+  // Do not import its validator here: the dev plugin blocks config dependencies.
+  const page = typeof c.inventoryPage === 'string' && c.inventoryPage ? c.inventoryPage : undefined;
+  const ready = Boolean(
+    c.artist && c.contract && c.chainId && c.rpc && c.indexer && c.origin && page,
+  );
+  return { ...c, inventoryPage: page, ready, demo: !ready };
 }
 export const json = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   Response.json(data, { status, headers: { 'Cache-Control': 'no-store', ...headers } });

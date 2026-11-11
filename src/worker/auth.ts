@@ -75,7 +75,7 @@ export async function auth(req: Request, env: Env, path: string) {
   const c = config(env);
   ensure(
     c.ready,
-    'Configure the artist, network, contract, and site origin before signing in.',
+    'Configure the artist, network, contract, site origin, and custom inventoryPage before signing in.',
     503,
   );
   ensure(

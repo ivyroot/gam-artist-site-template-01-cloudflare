@@ -143,6 +143,7 @@ describe.skipIf(!settings.enabled)('live TezBox GAM + actual Worker routes', () 
         indexer: 'https://unused-indexer.example',
         origin,
         websiteId: '0',
+        inventoryPage: '/sandbox-stockroom',
       }),
       SESSION_SECRET: 'sandbox-test-only-session-key-over-32-characters',
     } as Env;
@@ -165,13 +166,13 @@ describe.skipIf(!settings.enabled)('live TezBox GAM + actual Worker routes', () 
   it('uploads/verifies an original through the Worker, publishes it, and ingests real emitted events', async () => {
     const start = (await (
       await call(
-        '/api/admin/upload/start',
+        '/sandbox-stockroom/api/upload/start',
         { id: '0', name: 'tezbox-original.txt', type: 'application/octet-stream' },
         artistCookie,
       )
     ).json()) as any;
     const part = await worker.fetch(
-      new Request(`${origin}/api/admin/upload/${start.token}/part?number=1`, {
+      new Request(`${origin}/sandbox-stockroom/api/upload/${start.token}/part?number=1`, {
         method: 'POST',
         headers: { Origin: origin, Cookie: artistCookie },
         body: 'TezBox original — exact bytes ✓',
@@ -180,7 +181,7 @@ describe.skipIf(!settings.enabled)('live TezBox GAM + actual Worker routes', () 
     );
     expect(part.status).toBe(200);
     const complete = await call(
-      `/api/admin/upload/${start.token}/complete`,
+      `/sandbox-stockroom/api/upload/${start.token}/complete`,
       { parts: [await part.json()] },
       artistCookie,
     );

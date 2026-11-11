@@ -1,8 +1,15 @@
 import { bindings, defineConfig, triggers } from 'cf/config';
 import productionSite from './site.config.json' with { type: 'json' };
 import stagingSite from './site.staging.config.json' with { type: 'json' };
+import { inventoryPage } from './src/shared/inventory.ts';
 export default defineConfig(({ mode }) => {
   const site = mode === 'staging' ? stagingSite : productionSite;
+  const inventory = inventoryPage(site.inventoryPage);
+  if ((site.artist || site.contract) && !inventory) {
+    throw new Error(
+      'Choose a custom inventoryPage in the site configuration before configuring an artist deployment.',
+    );
+  }
   return {
     worker: {
       name: site.workerName,
@@ -20,6 +27,10 @@ export default defineConfig(({ mode }) => {
           '/previews/*',
           '/library',
           '/admin',
+          '/admin/*',
+          '/inventory',
+          '/inventory/*',
+          ...(inventory ? [inventory, `${inventory}/*`] : []),
         ],
       },
       env: {

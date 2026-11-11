@@ -6,20 +6,23 @@ Use the project-pinned CLI through `npx cf` or npm scripts. The installed global
 
 Edit `site.staging.config.json` first. Supply:
 
-| Field        | Meaning                                                                                                     |
-| ------------ | ----------------------------------------------------------------------------------------------------------- |
-| `workerName` | Unique Worker name for this artist and environment.                                                         |
-| `artist`     | Artist's implicit Tezos wallet; receives payments and owns records.                                         |
-| `contract`   | Existing shared GAM contract on the chosen test chain.                                                      |
-| `chainId`    | Actual RPC chain identifier, not a network nickname.                                                        |
-| `rpc`        | RPC base URL without a trailing slash.                                                                      |
-| `indexer`    | Matching TzKT API origin without `/v1` or a trailing slash.                                                 |
-| `explorer`   | Matching explorer origin, e.g. the human-facing TzKT site.                                                  |
-| `origin`     | Exact HTTPS website origin, without trailing slash. Local development uses its configured localhost origin. |
-| `websiteId`  | Unused per-artist website ID, or the existing ID being restored/migrated.                                   |
-| branding     | Name, tagline, and biography.                                                                               |
+| Field           | Meaning                                                                                                     |
+| --------------- | ----------------------------------------------------------------------------------------------------------- |
+| `workerName`    | Unique Worker name for this artist and environment.                                                         |
+| `artist`        | Artist's implicit Tezos wallet; receives payments and owns records.                                         |
+| `contract`      | Existing shared GAM contract on the chosen test chain.                                                      |
+| `chainId`       | Actual RPC chain identifier, not a network nickname.                                                        |
+| `rpc`           | RPC base URL without a trailing slash.                                                                      |
+| `indexer`       | Matching TzKT API origin without `/v1` or a trailing slash.                                                 |
+| `explorer`      | Matching explorer origin, e.g. the human-facing TzKT site.                                                  |
+| `origin`        | Exact HTTPS website origin, without trailing slash. Local development uses its configured localhost origin. |
+| `websiteId`     | Unused per-artist website ID, or the existing ID being restored/migrated.                                   |
+| `inventoryPage` | Required artist-chosen Inventory URL path, such as `/stockroom-blue-42`; no shared default.                 |
+| branding        | Name, tagline, and biography.                                                                               |
 
 The template does not originate a contract. Confirm its seven entrypoints and two views match the supplied ABI snapshot. Use a currently supported Tezos test network with matching wallet, RPC, and indexer support; the old plan's Ghostnet reference is not an automatic network selection.
+
+Choose `inventoryPage` before configuring an artist deployment. It must begin with `/` and contain one segment of 3–80 letters, numbers, hyphens, or underscores; common paths such as `/admin`, `/inventory`, and `/studio` are reserved. The template preview allows the value to remain blank, but artist deployments require it. Inventory and its APIs move together if you change this setting and redeploy. Keep a private bookmark of your chosen URL. The path is not an authentication secret: wallet signatures and artist-role checks remain mandatory, and a public source repository can reveal configuration.
 
 ## 2. Validate and deploy
 
@@ -50,7 +53,7 @@ npx cf d1 migrations apply YOUR_D1_DATABASE_ID --dir migrations --mode staging
 
 ## 3. Publish a first work
 
-1. Open `/admin` on the canonical site and sign in with the artist wallet.
+1. Open the custom `inventoryPage` URL you configured on the canonical site and sign in with the artist wallet. Buyer pages do not link to it.
 2. Register the website and optionally set the artist display name. Resolve an ID conflict before signing; registrations are artist-scoped upserts, so check any use of the same artist in other deployments.
 3. Choose a new listing ID, upload an original, and wait for server-side hash verification. Upload a reduced public preview.
 4. Enter title, type, description, independent tier prices, terms, and activity. Zero disables a tier.

@@ -7,6 +7,7 @@ import { config, ensure, HttpError, json, publicHeaders, type Env } from './env'
 export async function route(req: Request, env: Env): Promise<Response> {
   const url = new URL(req.url),
     path = url.pathname;
+  const inventory = config(env).inventoryPage;
   if (req.method === 'OPTIONS') {
     if (
       path === '/listings.json' ||
@@ -22,15 +23,33 @@ export async function route(req: Request, env: Env): Promise<Response> {
     ensure(req.method === (path === '/api/session' ? 'GET' : 'POST'), 'Method not allowed.', 405);
     return auth(req, env, path);
   }
-  if (path.startsWith('/api/admin/')) {
+  if (inventory && path.startsWith(`${inventory}/api/`)) {
+    const action = path.slice(`${inventory}/api/`.length);
     ensure(
-      req.method === 'POST' || (req.method === 'GET' && path === '/api/admin/status'),
+      req.method === 'POST' || (req.method === 'GET' && action === 'status'),
       'Method not allowed.',
       405,
     );
-    return admin(req, env, path);
+    return admin(req, env, `/api/admin/${action}`);
+  }
+  if (
+    path === '/api/admin' ||
+    path.startsWith('/api/admin/') ||
+    (!path.startsWith('/api/') && path.includes('/api/'))
+  ) {
+    throw new HttpError(404, 'Route not found.');
   }
   ensure(req.method === 'GET' || req.method === 'HEAD', 'Method not allowed.', 405);
+  if (inventory && path === inventory) return inventoryShell(req, env);
+  if (
+    path === '/admin' ||
+    path.startsWith('/admin/') ||
+    path === '/inventory' ||
+    path.startsWith('/inventory/') ||
+    (inventory && path.startsWith(`${inventory}/`))
+  ) {
+    throw new HttpError(404, 'Page not found.');
+  }
   if (path === '/api/health') {
     await env.DB.prepare('SELECT id FROM sync WHERE id=1').first();
     const c = config(env);
@@ -123,6 +142,21 @@ export async function route(req: Request, env: Env): Promise<Response> {
   if (path.startsWith('/api/') || path.startsWith('/listing/') || path.startsWith('/collection/'))
     throw new HttpError(404, 'Route not found.');
   return env.ASSETS.fetch(req);
+}
+async function inventoryShell(req: Request, env: Env) {
+  const response = await shell(req, env);
+  const html = (await response.text()).replace(
+    '</head>',
+    '<meta name="gam-inventory-page" content="true"/><meta name="robots" content="noindex, nofollow"/></head>',
+  );
+  return new Response(html, {
+    status: response.status,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'private, no-store',
+      'X-Robots-Tag': 'noindex, nofollow',
+    },
+  });
 }
 async function shell(
   req: Request,

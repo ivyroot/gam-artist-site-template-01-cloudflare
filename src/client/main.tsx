@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { api, uploadOriginal } from './api';
+import { api, inventoryApi, uploadOriginal } from './api';
 import { login, disconnect, send } from './wallet';
 import { purchase, review } from '../chain/parameters';
 import { mutez, short, tez, type Catalog, type Work, type Kind, type Tier } from '../shared/model';
@@ -60,6 +60,9 @@ function App() {
       setNotice('Signed in securely.');
     });
   const path = location.pathname;
+  const isInventoryPage = Boolean(
+    document.querySelector('meta[name="gam-inventory-page"][content="true"]'),
+  );
   const m = path.match(/^\/(listing|collection)\/(\d+)$/);
   const dm = path.match(/^\/download\/(?:collection\/(\d+)|(\d+))$/);
   return (
@@ -104,7 +107,9 @@ function App() {
           <span>
             Configure the artist and shared contract to enable wallet purchases and publishing.
           </span>
-          <a href="/admin">Setup guide ↗</a>
+          <span>
+            Choose your Inventory path in <code>site.config.json</code>.
+          </span>
         </div>
       )}
       {(error || notice) && (
@@ -122,8 +127,8 @@ function App() {
         </div>
       )}
       <main>
-        {path === '/admin' ? (
-          <Admin {...{ data, user, busy, act, reload, signIn, setNotice }} />
+        {isInventoryPage ? (
+          <Inventory {...{ data, user, busy, act, reload, signIn, setNotice }} />
         ) : path === '/library' ? (
           <Library {...{ data, user, busy, signIn, act }} />
         ) : dm ? (
@@ -144,7 +149,7 @@ function App() {
             <p className="eyebrow">404</p>
             <h1>Nothing here, yet.</h1>
             <a className="button" href="/">
-              Back to the studio ↗
+              Back to the shop ↗
             </a>
           </section>
         )}
@@ -162,7 +167,6 @@ function App() {
           <br />
           <small>Display licenses on Tezos · Downloads delivered here.</small>
         </div>
-        <a href="/admin">Artist studio ↗</a>
       </footer>
     </>
   );
@@ -178,7 +182,7 @@ function Home({ data }: { data: Catalog }) {
       <section className="hero">
         <div>
           <p className="eyebrow">
-            <span className="small-sun">✳</span> FROM THE STUDIO, TO YOUR WORLD
+            <span className="small-sun">✳</span> FROM THE ARTIST, TO YOUR WORLD
           </p>
           <h1>{data.config.tagline}</h1>
           <p className="hero-copy">{data.config.bio}</p>
@@ -229,15 +233,12 @@ function Home({ data }: { data: Catalog }) {
             </div>
             <div>
               <p className="eyebrow">A NEW CHAPTER</p>
-              <h2>The studio is taking shape.</h2>
+              <h2>The shop is taking shape.</h2>
               <p>
                 Published works will appear here. Each one is an original file,
                 <br className="desktop" /> with a license you can verify and a download you can
                 keep.
               </p>
-              <a className="text-link" href="/admin">
-                Open the artist studio ↗
-              </a>
             </div>
           </div>
         )}
@@ -350,7 +351,7 @@ function Detail({ work: w, data, user, busy, act, signIn, setNotice }: Common & 
     return (
       <section className="empty">
         <h1>Work not found.</h1>
-        <p>The catalog may still be syncing. Return to the studio and try again.</p>
+        <p>The catalog may still be syncing. Return to the shop and try again.</p>
         <a href="/">Back to works</a>
       </section>
     );
@@ -778,7 +779,7 @@ function Downloads({
     </section>
   );
 }
-function Admin({
+function Inventory({
   data,
   user,
   busy,
@@ -805,7 +806,7 @@ function Admin({
     [status, setStatus] = useState<any>(null),
     [name, setName] = useState('');
   const refresh = async () => {
-    setStatus(await api('/api/admin/status'));
+    setStatus(await api(inventoryApi('status')));
     await reload();
   };
   useEffect(() => {
@@ -815,11 +816,11 @@ function Admin({
   return (
     <section className="page admin">
       <p className="eyebrow">BEHIND THE WORK</p>
-      <h1>The artist studio.</h1>
+      <h1>Inventory</h1>
       <p>Publish your originals, shape your collections, and keep your own storefront.</p>
       {!data.config.ready ? (
         <div className="setup-card">
-          <h2>Make this studio yours.</h2>
+          <h2>Set up your shop.</h2>
           <ol>
             <li>
               Set your name, artist address, network, shared GAM contract, RPC/indexer, canonical
@@ -841,7 +842,7 @@ function Admin({
         </div>
       ) : user.role !== 'admin' ? (
         <div className="empty">
-          <h2>Your wallet opens the studio.</h2>
+          <h2>Your wallet opens your inventory.</h2>
           <p>Sign in with {short(data.config.artist)} to manage this deployment.</p>
           <button className="primary" disabled={busy} onClick={() => signIn('admin')}>
             Sign in as artist ↗
@@ -857,7 +858,7 @@ function Admin({
               disabled={busy}
               onClick={() =>
                 act(async () => {
-                  const r = await api('/api/admin/sync', {});
+                  const r = await api(inventoryApi('sync'), {});
                   await refresh();
                   setNotice(
                     r.complete ? 'Catalog synced.' : 'Sync page saved. Run sync again to continue.',
@@ -878,7 +879,7 @@ function Admin({
               disabled={busy}
               onClick={() =>
                 act(async () => {
-                  const r = await api('/api/admin/prepare/setup', {
+                  const r = await api(inventoryApi('prepare/setup'), {
                     websiteId: data.config.websiteId,
                     name,
                   });
@@ -940,7 +941,7 @@ function Admin({
               onSubmit={(e) => {
                 e.preventDefault();
                 act(async () => {
-                  const r = await api('/api/admin/prepare/work', w);
+                  const r = await api(inventoryApi('prepare/work'), w);
                   await send(data.config, r.transactions, setNotice, true);
                   await refresh();
                 });
@@ -1099,7 +1100,7 @@ function Admin({
                     const f = e.target.files?.[0];
                     if (f)
                       act(async () => {
-                        const r = await fetch('/api/admin/preview', {
+                        const r = await fetch(inventoryApi('preview'), {
                           method: 'POST',
                           headers: { 'Content-Type': f.type },
                           body: f,

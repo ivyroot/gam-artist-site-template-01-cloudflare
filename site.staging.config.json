@@ -10,5 +10,6 @@
   "origin": "http://localhost:5173",
   "websiteId": "0",
   "workerName": "gam-artist-site-staging",
-  "explorer": ""
+  "explorer": "",
+  "inventoryPage": ""
 }

@@ -172,3 +172,43 @@ it('preserves large chain integers without rounding', async () => {
     spy.mockRestore();
   }
 });
+
+import { inventoryPage } from '../src/shared/inventory';
+import { config } from '../src/worker/env';
+it('accepts a custom Inventory path and rejects common or unsafe paths', () => {
+  expect(inventoryPage('/stockroom-blue-42')).toBe('/stockroom-blue-42');
+  expect(inventoryPage('')).toBeUndefined();
+  for (const invalid of [
+    '/admin',
+    '/inventory',
+    '/studio',
+    '/api',
+    '/samples',
+    '/library',
+    '/',
+    '/x',
+    'no-slash',
+    '//other.example',
+    '/stockroom?x=1',
+    '/stockroom/',
+    '/stock%2Froom',
+    '/stock room',
+  ]) {
+    expect(() => inventoryPage(invalid)).toThrow();
+  }
+});
+it('does not enable artist deployments without a custom inventoryPage', () => {
+  const site = {
+    artist: 'artist',
+    contract: 'contract',
+    chainId: 'NetTest',
+    rpc: 'https://rpc.example',
+    indexer: 'https://indexer.example',
+    origin: 'https://shop.example',
+  };
+  expect(config({ SITE_CONFIG: JSON.stringify(site) } as any).ready).toBe(false);
+  expect(
+    config({ SITE_CONFIG: JSON.stringify({ ...site, inventoryPage: '/stockroom-blue-42' }) } as any)
+      .ready,
+  ).toBe(true);
+});

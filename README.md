@@ -40,9 +40,9 @@ The sample artworks have high-resolution JPEG originals for delivery and smaller
 
 ## Configure an artist
 
-Edit `site.config.json`; use `site.staging.config.json` for staging. Set a unique `workerName`, artist wallet, shared GAM contract, actual chain ID, RPC/indexer base URLs, explorer base URL, canonical origin, and website ID. No mainnet address is guessed. Branding fields are ordinary configuration.
+Edit `site.config.json`; use `site.staging.config.json` for staging. Set a unique `workerName`, artist wallet, shared GAM contract, actual chain ID, RPC/indexer base URLs, explorer base URL, canonical origin, website ID, and a custom `inventoryPage`. No mainnet address is guessed. Branding fields are ordinary configuration.
 
-The artist studio is `/admin`. Register the website, upload an original and a reduced public preview, then approve the listing in the artist wallet. Existing IDs edit existing records: choose a new unused ID for a new work or corrected file. Collections are created closed and opened in the same batch that adds their works.
+The artist management area is **Inventory**. Choose its path yourself in `site.config.json`, for example `"inventoryPage": "/stockroom-blue-42"`, and open that URL directly. The template ships with an empty value; an artist deployment cannot build until a custom path is chosen. Use one path segment of 3–80 letters, numbers, hyphens, or underscores, beginning with `/`; standard names such as `/admin` and `/inventory` are rejected. There are no Inventory links on buyer pages, and the path is omitted from public catalog responses. Inventory APIs also use the custom path. Artist wallet authentication remains required. Register the website, upload an original and a reduced public preview, then approve the listing in the artist wallet. Existing IDs edit existing records: choose a new unused ID for a new work or corrected file. Collections are created closed and opened in the same batch that adds their works.
 
 See [deployment](docs/deployment.md), [architecture](docs/architecture.md), and [operations](docs/operations.md).
 

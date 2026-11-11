@@ -34,6 +34,7 @@ export interface SiteConfig {
   workerName?: string;
   origin: string;
   websiteId: string;
+  inventoryPage?: string;
   ready: boolean;
   demo: boolean;
 }

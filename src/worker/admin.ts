@@ -31,7 +31,7 @@ export function validateWork(v: Work): Work {
   text(v.long_description ?? '', 10000);
   text(v.item_type ?? '', 100);
   if (v.preview)
-    ensure(/^\/previews\/[a-f0-9-]+$/.test(v.preview), 'Upload a preview through the admin panel.');
+    ensure(/^\/previews\/[a-f0-9-]+$/.test(v.preview), 'Upload a preview through Inventory.');
   if (v.replaces) nat(v.replaces);
   if (v.replaced_by) nat(v.replaced_by);
   if (v.members) {

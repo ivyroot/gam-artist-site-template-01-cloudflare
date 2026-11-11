@@ -1,6 +1,6 @@
 import type { SiteConfig } from '../shared/model';
 import type { Transaction } from '../chain/parameters';
-import { api } from './api';
+import { api, inventoryApi } from './api';
 import { NetworkType, SigningType, PermissionScope } from '@ecadlabs/beacon-types';
 let wallet: import('@taquito/beacon-wallet').BeaconWallet | undefined;
 let toolkit: import('@taquito/taquito').TezosToolkit | undefined;
@@ -69,7 +69,7 @@ export async function send(
     .send();
   // Keep the submitted hash visible and recoverable even if confirmation polling fails.
   progress(`Submitted ${op.opHash}. Waiting for confirmation…`);
-  if (artistOnly) await api('/api/admin/operation', { hash: op.opHash }).catch(() => {});
+  if (artistOnly) await api(inventoryApi('operation'), { hash: op.opHash }).catch(() => {});
   await op.confirmation(2);
   progress(`Confirmed ${op.opHash}. Catalog updates after indexing.`);
   return op.opHash;

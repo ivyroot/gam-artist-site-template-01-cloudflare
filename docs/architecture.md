@@ -4,7 +4,7 @@ The implementation follows the October 26 GAM plan and the November 10 Cloudflar
 
 ## Boundaries
 
-- `src/client`: React storefront, wallet adapter, artist studio, and buyer pages. Taquito/Beacon load on first connection rather than on initial browsing.
+- `src/client`: React storefront, wallet adapter, Inventory, and buyer pages. Taquito/Beacon load on first connection rather than on initial browsing.
 - `src/worker`: HTTP routes, sessions, artist actions, event catalog, and gated streaming.
 - `src/chain`: lossless RPC decoding, views, and raw Micheline transaction builders. `parameter-schema.json` snapshots the compiled GAM parameter type for tests.
 - `src/shared`: public data types, UTF-8 encoding, and exact tez/mutez conversion.
@@ -19,6 +19,10 @@ The chain owns canonical titles, prices, activity flags, file hashes, website re
 Each private request checks the configured RPC chain ID, reads a block level, and uses GAM views at that level. A listing license is sufficient; otherwise an owned collection must currently contain the work. The local membership mirror supplies candidates only. If it is missing a recent addition, access can be temporarily delayed; stale entries cannot grant removed membership. RPC unavailability returns a retryable error instead of serving a file.
 
 The indexer is a trust dependency for catalog presentation. Sync verifies network identity, imports up to five 200-event pages, stores checkpoints transactionally, and compares RPC checkpoint hashes to detect reorganizations. A D1 lease serializes scheduled/manual syncs. A detected reorganization clears chain-derived events and rebuilds them, leaving originals and metadata intact. Manual sync continues long imports; the next scheduled run also continues.
+
+## Inventory routing
+
+`inventoryPage` is a required artist-chosen path for artist deployments, with no common default. Configuration-time validation rejects reserved paths and malformed URLs before constructing the Worker bindings. The Worker reads the validated path from `SITE_CONFIG`; it must not import the configuration's validator, because the Cloudflare Vite plugin blocks configuration dependencies in its dev runner. The Worker serves the Inventory shell only at this configured path and routes its APIs under `<inventoryPage>/api/`; the old `/admin` page and fixed `/api/admin/*` endpoints are disabled. A server-rendered page marker selects the Inventory UI without publishing the configured path in the client bundle. Buyer pages have no Inventory links, and public catalog JSON omits `inventoryPage`. The Inventory shell is non-cacheable and marked `noindex, nofollow`. Knowing the path never bypasses wallet authentication or artist authorization.
 
 ## Authentication
 

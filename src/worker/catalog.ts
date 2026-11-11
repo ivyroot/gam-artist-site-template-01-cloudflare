@@ -70,6 +70,8 @@ export function project(
 }
 export async function catalog(env: Env): Promise<Catalog> {
   const c = config(env);
+  // The artist's chosen Inventory URL must not be advertised in public JSON.
+  const { inventoryPage: _inventoryPage, ...publicConfig } = c;
   const rows = await env.DB.prepare('SELECT * FROM events ORDER BY id').all<{
     id: number;
     level: number;
@@ -110,7 +112,7 @@ export async function catalog(env: Env): Promise<Catalog> {
     Catalog['sync']
   >();
   return {
-    config: c,
+    config: publicConfig,
     works: works.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id)),
     reviews: projection.reviews,
     sync: s ?? { cursor: 0, level: 0, updated: null },

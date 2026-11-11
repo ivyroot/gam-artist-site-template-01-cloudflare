@@ -23,6 +23,10 @@ Rotate `SESSION_SECRET` using Cloudflare's runtime secrets mechanism or `cf depl
 | Missing object or hash/catalog mismatch     | Restore the exact original and catalog row from backup. Do not change the on-chain hash or silently serve another export.                                     |
 | Expired buyer session                       | Sign in again. Version 1 allows unlimited reauthentication and licensed redownloads.                                                                          |
 
+## Inventory access
+
+Open the custom URL stored in `inventoryPage` in your site configuration. There is no `/admin` fallback and no buyer-facing link. If you forget it, recover it from your local configuration or deployment repository; do not add a public redirect. To change it, edit the configuration and redeploy: the Inventory page and its API routes move together. Sessions still require the configured artist wallet; a custom URL is not a substitute for authorization.
+
 ## Domain migration
 
 Copy R2 objects/previews and restore D1 into the replacement infrastructure. Keep the artist wallet, contract, chain, website ID, and private file mapping. Set the new canonical origin, deploy with a fresh secret, and verify an existing licensed buyer can download exact matching bytes. Update `set_website` with the existing website ID and new URL using the artist wallet. Cookies do not migrate; users sign in on the new host.

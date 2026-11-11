@@ -48,6 +48,7 @@ beforeAll(async () => {
       indexer: 'https://api.indexer.example',
       origin,
       websiteId: '0',
+      inventoryPage: '/private-stockroom',
     }),
   } as Env;
   await live.DB.exec(migration);
@@ -64,7 +65,7 @@ beforeEach(async () => {
 describe('authentication and routing', () => {
   it('requires authentication before any direct original request', async () => {
     expect((await call('/download/0/file')).status).toBe(401);
-    expect((await call('/api/admin/status')).status).toBe(401);
+    expect((await call('/private-stockroom/api/status')).status).toBe(401);
   });
   it('verifies a real Tezos signature, consumes nonce once and revokes logout', async () => {
     const { cookie, challenge, sig } = await signIn();
@@ -97,7 +98,7 @@ describe('authentication and routing', () => {
     expect(
       (
         await call(
-          '/api/admin/status',
+          '/private-stockroom/api/status',
           undefined,
           'gam_session=' + 'a'.repeat(64) + '.' + 'b'.repeat(64),
         )
@@ -122,7 +123,7 @@ describe('authentication and routing', () => {
   });
   it('buyer sessions do not confer artist admin, even for the artist address', async () => {
     const { cookie } = await signIn();
-    expect((await call('/api/admin/status', undefined, cookie)).status).toBe(403);
+    expect((await call('/private-stockroom/api/status', undefined, cookie)).status).toBe(403);
   });
   it('does not allow public route fallback to hide unknown API/download paths', async () => {
     expect((await call('/api/missing')).status).toBe(404);
@@ -258,22 +259,26 @@ describe('artist file publishing', () => {
   it('requires an artist session and checks origin for mutations', async () => {
     const { cookie } = await signIn('admin');
     expect(
-      (await worker.fetch(request('/api/admin/preview', {}, cookie, 'https://other.example'), live))
-        .status,
+      (
+        await worker.fetch(
+          request('/private-stockroom/api/preview', {}, cookie, 'https://other.example'),
+          live,
+        )
+      ).status,
     ).toBe(403);
   });
   it('uploads multipart originals, computes SHA-256 on the server and prevents replacement', async () => {
     const { cookie } = await signIn('admin');
     const start = (await (
       await call(
-        '/api/admin/upload/start',
+        '/private-stockroom/api/upload/start',
         { id: '7', name: 'original.bin', type: 'application/octet-stream' },
         cookie,
       )
     ).json()) as any;
     const bytes = new TextEncoder().encode('original file bytes');
     const part = await worker.fetch(
-      new Request(`${origin}/api/admin/upload/${start.token}/part?number=1`, {
+      new Request(`${origin}/private-stockroom/api/upload/${start.token}/part?number=1`, {
         method: 'POST',
         headers: { Origin: origin, Cookie: cookie },
         body: bytes,
@@ -282,7 +287,7 @@ describe('artist file publishing', () => {
     );
     expect(part.status).toBe(200);
     const done = await call(
-      `/api/admin/upload/${start.token}/complete`,
+      `/private-stockroom/api/upload/${start.token}/complete`,
       { parts: [await part.json()] },
       cookie,
     );
@@ -292,7 +297,7 @@ describe('artist file publishing', () => {
     expect(
       (
         await call(
-          '/api/admin/upload/start',
+          '/private-stockroom/api/upload/start',
           { id: '7', name: 'changed.bin', type: 'application/octet-stream' },
           cookie,
         )
@@ -302,7 +307,7 @@ describe('artist file publishing', () => {
   it('rejects active preview content and invalid IDs', async () => {
     const { cookie } = await signIn('admin');
     const r = await worker.fetch(
-      new Request(origin + '/api/admin/preview', {
+      new Request(origin + '/private-stockroom/api/preview', {
         method: 'POST',
         headers: { Origin: origin, Cookie: cookie, 'Content-Type': 'image/svg+xml' },
         body: '<svg/>',
@@ -311,8 +316,13 @@ describe('artist file publishing', () => {
     );
     expect(r.status).toBe(400);
     expect(
-      (await call('/api/admin/upload/start', { id: '-1', name: 'x', type: 'image/png' }, cookie))
-        .status,
+      (
+        await call(
+          '/private-stockroom/api/upload/start',
+          { id: '-1', name: 'x', type: 'image/png' },
+          cookie,
+        )
+      ).status,
     ).toBe(400);
   });
   it('redirects an unauthenticated download page to login without exposing private content', async () => {
@@ -322,5 +332,63 @@ describe('artist file publishing', () => {
     );
     expect(r.status).toBe(302);
     expect(r.headers.get('Location')).toBe(origin + '/library?next=%2Fdownload%2F0');
+  });
+});
+
+describe('custom Inventory routing', () => {
+  const pageEnv = () =>
+    ({
+      ...live,
+      ASSETS: {
+        fetch: async () =>
+          new Response(
+            '<!doctype html><html><head><title>Shop</title></head><body>Public shop</body></html>',
+            { headers: { 'Content-Type': 'text/html' } },
+          ),
+      },
+    }) as unknown as Env;
+  it('serves Inventory only at the configured custom page, with no indexing or caching', async () => {
+    const response = await worker.fetch(request('/private-stockroom'), pageEnv());
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+    expect(response.headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
+    expect(await response.text()).toContain('name="gam-inventory-page" content="true"');
+  });
+  it('returns 404 for conventional pages and the old fixed admin APIs', async () => {
+    for (const path of ['/admin', '/admin/', '/inventory', '/api/admin/status']) {
+      expect((await worker.fetch(request(path), pageEnv())).status).toBe(404);
+    }
+    expect((await call('/api/admin/sync', {})).status).toBe(404);
+  });
+  it('does not expose Inventory paths in public catalog, session, index or shop HTML', async () => {
+    for (const path of ['/api/catalog', '/api/session', '/listings.json', '/']) {
+      const response = await worker.fetch(request(path), pageEnv());
+      expect(response.status).toBe(200);
+      const text = await response.text();
+      expect(text).not.toContain('/private-stockroom');
+      expect(text).not.toContain('inventoryPage');
+      expect(text).not.toContain('gam-inventory-page');
+    }
+  });
+  it('changing inventoryPage disables the old page and API routes', async () => {
+    const moved = {
+      ...pageEnv(),
+      SITE_CONFIG: JSON.stringify({
+        ...JSON.parse(live.SITE_CONFIG),
+        inventoryPage: '/new-stockroom-42',
+      }),
+    };
+    const oldPage = await worker.fetch(request('/private-stockroom'), moved);
+    expect(await oldPage.text()).not.toContain('gam-inventory-page');
+    expect((await worker.fetch(request('/private-stockroom/api/status'), moved)).status).toBe(404);
+    const newPage = await worker.fetch(request('/new-stockroom-42'), moved);
+    expect(await newPage.text()).toContain('gam-inventory-page');
+    expect((await worker.fetch(request('/new-stockroom-42/api/status'), moved)).status).toBe(401);
+  });
+  it('requires artist authorization even when someone knows the Inventory path', async () => {
+    const { cookie } = await signIn();
+    expect((await call('/private-stockroom/api/status', undefined, cookie)).status).toBe(403);
+    const admin = await signIn('admin');
+    expect((await call('/private-stockroom/api/status', undefined, admin.cookie)).status).toBe(200);
   });
 });
