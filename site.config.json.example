@@ -14,13 +14,13 @@
       "localOrigin": "http://localhost:5173",
       "websiteId": "0",
       "inventoryPage": "",
-      "workerName": "gam-artist-site",
+      "workerName": "gam-artist-site-dev",
       "cloudflareAccountId": "",
       "storage": "local",
       "databaseId": "",
-      "databaseName": "gam-artist-site-catalog",
-      "originalsBucket": "gam-artist-site-originals",
-      "previewsBucket": "gam-artist-site-previews"
+      "databaseName": "gam-artist-site-dev-catalog",
+      "originalsBucket": "gam-artist-site-dev-originals",
+      "previewsBucket": "gam-artist-site-dev-previews"
     },
     "local-testnet": {
       "artist": "",
