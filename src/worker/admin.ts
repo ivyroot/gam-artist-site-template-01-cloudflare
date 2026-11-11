@@ -4,6 +4,7 @@ import { nat, type Work } from '../shared/model';
 import { setItem, setName, setWebsite, setWork } from '../chain/parameters';
 import { session } from './auth';
 import { catalog, sync } from './catalog';
+import { syncStatus } from './sync';
 import { body, config, ensure, HttpError, json, rateLimit, sameOrigin, type Env } from './env';
 const safeType = (type: string) =>
   /^(image\/(png|jpeg|webp|gif|avif)|video\/(mp4|webm)|audio\/[\w.+-]+|application\/(zip|pdf|octet-stream))$/.test(
@@ -88,6 +89,7 @@ export async function admin(req: Request, env: Env, path: string) {
       drafts: drafts.results,
       operations: operations.results,
       config: c,
+      sync: await syncStatus(env),
     });
   }
   if (path === '/api/admin/sync') {
@@ -100,7 +102,12 @@ export async function admin(req: Request, env: Env, path: string) {
     text(v.name ?? '', 200);
     ensure(v.websiteId === c.websiteId, 'Use the website ID configured for this deployment.');
     // Reconcile first so an artist sees existing registrations before approving an update.
-    await sync(env);
+    const caughtUp = await sync(env);
+    ensure(
+      caughtUp.complete,
+      'Catalog is catching up. Run Sync chain again before preparing this transaction.',
+      409,
+    );
     const rows = await env.DB.prepare(
       "SELECT payload FROM events WHERE tag='website_set' ORDER BY id DESC",
     ).all<{ payload: string }>();
@@ -117,7 +124,12 @@ export async function admin(req: Request, env: Env, path: string) {
     });
   }
   if (path === '/api/admin/prepare/work') {
-    await sync(env);
+    const caughtUp = await sync(env);
+    ensure(
+      caughtUp.complete,
+      'Catalog is catching up. Run Sync chain again before preparing this transaction.',
+      409,
+    );
     const w = validateWork(await body<Work>(req));
     ensure(w.website_id === c.websiteId, 'Work must belong to this deployment.');
     const data = await catalog(env);

@@ -4,6 +4,7 @@ import { InMemorySigner } from '@taquito/signer';
 import { b58Encode, PrefixV2 } from '@taquito/utils';
 import worker from '../src/worker/index';
 import migration from '../migrations/0001_initial.sql?raw';
+import sourceMigration from '../migrations/0002_catalog_sources.sql?raw';
 import type { Env } from '../src/worker/env';
 import { utf8Hex } from '../src/shared/model';
 let signer: InMemorySigner, address: string, publicKey: string, live: Env;
@@ -52,6 +53,7 @@ beforeAll(async () => {
     }),
   } as Env;
   await live.DB.exec(migration);
+  await live.DB.exec(sourceMigration);
 });
 beforeEach(async () => {
   await live.DB.batch(

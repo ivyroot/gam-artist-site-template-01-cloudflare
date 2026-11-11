@@ -3,13 +3,12 @@ import { env } from 'cloudflare:test';
 import { TezosToolkit, OpKind } from '@taquito/taquito';
 import { InMemorySigner } from '@taquito/signer';
 import { b58Encode, PrefixV2 } from '@taquito/utils';
-import { Schema } from '@taquito/michelson-encoder';
+import { sync } from '../src/worker/sync';
 import worker from '../src/worker/index';
 import {
   purchase,
   review,
   setItem,
-  setName,
   setWebsite,
   setWork,
   type Transaction,
@@ -18,6 +17,7 @@ import { chainHead, licenses, member } from '../src/chain/rpc';
 import { type Env } from '../src/worker/env';
 import type { Work } from '../src/shared/model';
 import migration from '../migrations/0001_initial.sql?raw';
+import sourceMigration from '../migrations/0002_catalog_sources.sql?raw';
 interface Settings {
   enabled: boolean;
   bootstrapKey: string;
@@ -36,7 +36,7 @@ let live: Env,
   artistCookie: string,
   buyerCookie: string,
   work: Work;
-let count = 0;
+
 const toolkit = (signer: InMemorySigner) => {
   const t = new TezosToolkit(settings.rpc);
   t.setProvider({ signer });
@@ -75,28 +75,11 @@ async function transact(t: TezosToolkit, txs: Transaction[]) {
       })),
     )
     .send();
-  await op.confirmation(1);
-  // Feed actual node receipts to the local mirror; no local TzKT indexer is assumed.
-  const included = await t.rpc.getBlock({ block: String(op.includedInBlock) });
-  const contents =
-    included.operations.flat().find((group) => group.hash === op.hash)?.contents ?? [];
-  const records = contents
-    .flatMap((r) => (r.metadata as any)?.internal_operation_results ?? [])
-    .filter((r: any) => r.kind === 'event');
-  for (const r of records) {
-    const payload = new Schema(r.type).Execute(r.payload);
-    const simplify = (v: any): any =>
-      v && typeof v === 'object' && v.constructor?.name === 'BigNumber'
-        ? v.toFixed()
-        : Array.isArray(v)
-          ? v.map(simplify)
-          : v && typeof v === 'object'
-            ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, simplify(x)]))
-            : v;
-    await live.DB.prepare('INSERT INTO events(id,level,tag,payload) VALUES(?,?,?,?)')
-      .bind(++count, (await t.rpc.getBlockHeader()).level, r.tag, JSON.stringify(simplify(payload)))
-      .run();
-  }
+  await op.confirmation(3);
+  let result;
+  do {
+    result = await sync(live);
+  } while (!result.complete);
   return op;
 }
 async function readLicense(kind: 'listing' | 'collection', id: string) {
@@ -125,13 +108,14 @@ describe.skipIf(!settings.enabled)('live TezBox GAM + actual Worker routes', () 
     const chainId = await bootstrap.rpc.getChainId();
     const deployed = await bootstrap.rpc.getScript(settings.contract);
     expect(JSON.stringify(deployed.code)).toContain('set_collection_item');
+    const historyStart = (await bootstrap.rpc.getBlockHeader()).level;
     const funding = await bootstrap.contract
       .batch([
         { kind: OpKind.TRANSACTION, to: artistAddress, amount: 2 },
         { kind: OpKind.TRANSACTION, to: buyerAddress, amount: 2 },
       ])
       .send();
-    await funding.confirmation(1);
+    await funding.confirmation(3);
     live = {
       ...env,
       SITE_CONFIG: JSON.stringify({
@@ -140,7 +124,10 @@ describe.skipIf(!settings.enabled)('live TezBox GAM + actual Worker routes', () 
         contract: settings.contract,
         chainId,
         rpc: settings.rpc,
-        indexer: 'https://unused-indexer.example',
+        indexer: '',
+        catalogSource: 'rpc',
+        // These are fresh identities, so no earlier artist history exists.
+        catalogStartLevel: historyStart,
         origin,
         websiteId: '0',
         inventoryPage: '/sandbox-stockroom',
@@ -148,6 +135,7 @@ describe.skipIf(!settings.enabled)('live TezBox GAM + actual Worker routes', () 
       SESSION_SECRET: 'sandbox-test-only-session-key-over-32-characters',
     } as Env;
     await live.DB.exec(migration);
+    await live.DB.exec(sourceMigration);
     await live.DB.batch(
       ['events', 'drafts', 'files', 'uploads', 'sessions', 'challenges', 'downloads'].map((t) =>
         live.DB.prepare(`DELETE FROM ${t}`),
@@ -160,7 +148,13 @@ describe.skipIf(!settings.enabled)('live TezBox GAM + actual Worker routes', () 
     );
   });
   it('registers the site and display name with the template transaction builders', async () => {
-    await transact(asArtist, [setName('TezBox Artist ✓'), setWebsite('0', origin)]);
+    const prepared = await call(
+      '/sandbox-stockroom/api/prepare/setup',
+      { websiteId: '0', name: 'TezBox Artist ✓' },
+      artistCookie,
+    );
+    expect(prepared.status).toBe(200);
+    await transact(asArtist, ((await prepared.json()) as any).transactions);
     expect(((await (await call('/api/catalog')).json()) as any).works).toHaveLength(0);
   });
   it('uploads/verifies an original through the Worker, publishes it, and ingests real emitted events', async () => {
@@ -199,7 +193,9 @@ describe.skipIf(!settings.enabled)('live TezBox GAM + actual Worker routes', () 
       active: true,
       file_hash: file.hash,
     };
-    await transact(asArtist, [setWork(work)]);
+    const prepared = await call('/sandbox-stockroom/api/prepare/work', work, artistCookie);
+    expect(prepared.status).toBe(200);
+    await transact(asArtist, ((await prepared.json()) as any).transactions);
     const catalog = (await (await call('/api/catalog')).json()) as any;
     expect(catalog.works[0]).toMatchObject({ title: work.title, file_hash: file.hash, id: '0' });
     expect((await call('/download/0/file', undefined, buyerCookie)).status).toBe(403);

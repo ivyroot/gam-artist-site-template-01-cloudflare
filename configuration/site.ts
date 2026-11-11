@@ -56,6 +56,12 @@ export function resolveSite(input: any, mode: Mode) {
       return [key, value];
     }),
   ) as Record<(typeof fields)[number], string>;
+  const source = raw.catalogSource ?? 'tzkt';
+  if (!['rpc', 'tzkt'].includes(source))
+    throw new Error(`${mode}.catalogSource must be rpc or tzkt.`);
+  const startLevel = raw.catalogStartLevel ?? 0;
+  if (!Number.isSafeInteger(startLevel) || startLevel < 0)
+    throw new Error(`${mode}.catalogStartLevel must be a nonnegative safe integer.`);
   const page = inventoryPage(raw.inventoryPage) ?? '';
   for (const key of ['origin', 'localOrigin'] as const) {
     if (site[key] && new URL(site[key]).origin !== site[key])
@@ -68,6 +74,8 @@ export function resolveSite(input: any, mode: Mode) {
   if (mode.startsWith('local-') && !site.localOrigin) throw new Error(`${mode} needs localOrigin.`);
   return {
     ...site,
+    catalogSource: source as 'rpc' | 'tzkt',
+    catalogStartLevel: startLevel,
     mode,
     inventoryPage: page,
     requestOrigin: mode.startsWith('local-') ? site.localOrigin : site.origin,
@@ -100,6 +108,8 @@ export function runtimeSite(site: ReturnType<typeof resolveSite>) {
     chainId,
     rpc,
     indexer,
+    catalogSource,
+    catalogStartLevel,
     explorer,
     origin,
     websiteId,
@@ -116,6 +126,8 @@ export function runtimeSite(site: ReturnType<typeof resolveSite>) {
     chainId,
     rpc,
     indexer,
+    catalogSource,
+    catalogStartLevel,
     explorer,
     origin,
     websiteId,

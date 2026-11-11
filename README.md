@@ -2,7 +2,7 @@
 
 An artist-owned storefront and Tezos DApp, built for Cloudflare Workers with Static Assets, D1, and private R2 storage. Each deployment serves one artist and the shared GAM contract. The artist receives purchases directly; this template never stores wallet keys.
 
-**Status:** first implementation, built and tested locally, including five live integration tests against the existing GAM contract on the running TezBox. Artist and canonical network settings are intentionally blank. The local-dev mode points to the previously verified TezBox GAM contract. No Cloudflare deployment is bundled. Finish browser-wallet and fresh-account deployment checks in [deployment](docs/deployment.md) before selling work.
+**Status:** first implementation, built and tested locally, including five live integration tests against the existing GAM contract on the running TezBox. Artist and canonical network settings are intentionally blank. All contract addresses and chain IDs, including local-dev, are intentionally blank in the example; supply your own sandbox identity in the ignored working file. No Cloudflare deployment is bundled. Finish browser-wallet and fresh-account deployment checks in [deployment](docs/deployment.md) before selling work.
 
 ## Run locally
 
@@ -36,7 +36,7 @@ The sample artworks have high-resolution JPEG originals for delivery and smaller
 - One-time signed wallet challenges, host-only signed session cookies, role checks, origin checks, rate limits, and logout revocation.
 - Artist registration, multipart original upload, server-side SHA-256 verification, immutable file catalog, previews, metadata, listing edits, and collection membership batches.
 - Direct-license or current-collection-license checks through RPC views before private downloads; original file streaming and verification commands.
-- Paginated TzKT event ingestion with checkpoints, a sync lock, replay/rebuild on detected reorganization, and a five-minute scheduled sync.
+- Configurable TzKT or direct-RPC event ingestion with checkpoints, a sync lock, replay/rebuild on detected reorganization, deployed five-minute scheduling, and automatic local development sync.
 - Local Workers runtime tests, generated binding types, and explicit local and Cloudflare modes with separate testnet/mainnet resources.
 
 ## Configure an artist
@@ -50,6 +50,10 @@ The sample artworks have high-resolution JPEG originals for delivery and smaller
 | `local-mainnet`      | This computer, with Tezos mainnet                       | Cloudflare mainnet shop resources |
 | `cloudflare-testnet` | Cloudflare, with canonical Tezos testnet                | Cloudflare testnet shop resources |
 | `cloudflare-mainnet` | Cloudflare, with Tezos mainnet                          | Cloudflare mainnet shop resources |
+
+Each example mode explicitly selects `catalogSource`: `rpc` for `local-dev`, `tzkt` for the other four modes. Either source can be selected in any mode. Existing working configurations that omit the setting retain TzKT behavior. `catalogStartLevel` defaults to `0`; it is an inclusive lower bound for event history, not an automatic current-head shortcut.
+
+To use TezBox without TzKT, fill `modes.local-dev.artist`, `contract`, and `chainId` with your actual wallet and sandbox deployment, keep `catalogSource: "rpc"`, and leave `indexer` empty. Enable your custom `inventoryPage` if desired. For a fresh artist you can set `catalogStartLevel` to a block before its first operation; existing artists must include all prior history. RPC history must retain operation receipts. Browser wallets still need a browser-accessible RPC, including CORS for the local shop origin. See [catalog sources](docs/catalog-sources.md) for setup, migration, and limitations.
 
 There is no `cloudflare-dev`. `dev` means a chain outside canonical testnet/mainnet. Each entry explicitly lists its wallet, contract, endpoints, origins, website ID, Worker and storage resources; network settings do not inherit between entries. No official testnet or mainnet GAM address is guessed.
 

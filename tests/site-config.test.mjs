@@ -80,3 +80,35 @@ test('a missing working configuration explains setup without creating or overwri
     rmSync(directory, { recursive: true });
   }
 });
+
+test('catalog sources have explicit per-mode defaults and local chain identity is developer supplied', () => {
+  for (const mode of modes) {
+    const site = resolveSite(template, mode);
+    assert.equal(site.catalogSource, mode === 'local-dev' ? 'rpc' : 'tzkt');
+    assert.equal(site.catalogStartLevel, 0);
+    assert.equal(runtimeSite(site).catalogSource, site.catalogSource);
+  }
+  assert.equal(template.modes['local-dev'].contract, '');
+  assert.equal(template.modes['local-dev'].chainId, '');
+  const legacy = structuredClone(template);
+  delete legacy.modes['local-dev'].catalogSource;
+  delete legacy.modes['local-dev'].catalogStartLevel;
+  assert.equal(resolveSite(legacy, 'local-dev').catalogSource, 'tzkt');
+  assert.equal(resolveSite(legacy, 'local-dev').catalogStartLevel, 0);
+});
+test('source and starting level are validated without coupling them to a mode', () => {
+  for (const mode of modes) {
+    const copy = structuredClone(template);
+    copy.modes[mode].catalogSource = 'rpc';
+    assert.equal(resolveSite(copy, mode).catalogSource, 'rpc');
+    for (const bad of ['auto', '', 7]) {
+      copy.modes[mode].catalogSource = bad;
+      assert.throws(() => resolveSite(copy, mode), /catalogSource/);
+    }
+    copy.modes[mode].catalogSource = 'rpc';
+    for (const bad of [-1, 1.5, '0', Number.MAX_SAFE_INTEGER + 1]) {
+      copy.modes[mode].catalogStartLevel = bad;
+      assert.throws(() => resolveSite(copy, mode), /catalogStartLevel/);
+    }
+  }
+});

@@ -1,0 +1,2 @@
+CREATE TABLE IF NOT EXISTS catalog_state ( id INTEGER PRIMARY KEY CHECK(id=1), identity TEXT NOT NULL, source TEXT NOT NULL CHECK(source IN ('rpc','tzkt')), target_level INTEGER NOT NULL DEFAULT 0, complete INTEGER NOT NULL DEFAULT 0, error TEXT );
+CREATE TABLE IF NOT EXISTS event_origins ( source_key TEXT PRIMARY KEY, event_id INTEGER NOT NULL UNIQUE REFERENCES events(id) ON DELETE CASCADE );

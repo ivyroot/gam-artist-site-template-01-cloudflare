@@ -30,6 +30,8 @@ export interface SiteConfig {
   chainId: string;
   rpc: string;
   indexer: string;
+  catalogSource?: 'rpc' | 'tzkt';
+  catalogStartLevel?: number;
   explorer?: string;
   workerName?: string;
   origin: string;
@@ -44,7 +46,15 @@ export interface Catalog {
   config: SiteConfig;
   works: Work[];
   reviews: Review[];
-  sync: { cursor: number; level: number; updated: string | null };
+  sync: {
+    cursor: number;
+    level: number;
+    updated: string | null;
+    source?: 'rpc' | 'tzkt';
+    targetLevel?: number;
+    complete?: boolean;
+    error?: string | null;
+  };
 }
 export interface Review {
   buyer: string;

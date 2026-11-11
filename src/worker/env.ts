@@ -23,8 +23,21 @@ export function config(env: Env): SiteConfig {
   // cloudflare.config.ts validates this before constructing SITE_CONFIG.
   // Do not import its validator here: the dev plugin blocks config dependencies.
   const page = typeof c.inventoryPage === 'string' && c.inventoryPage ? c.inventoryPage : undefined;
-  const ready = Boolean(c.artist && c.contract && c.chainId && c.rpc && c.indexer && c.origin);
-  return { ...c, inventoryPage: page, ready, demo: !ready };
+  const catalogSource = c.catalogSource ?? 'tzkt';
+  const catalogStartLevel = c.catalogStartLevel ?? 0;
+  const validSource = catalogSource === 'rpc' || catalogSource === 'tzkt';
+  const validStart = Number.isSafeInteger(catalogStartLevel) && catalogStartLevel >= 0;
+  const ready = Boolean(
+    c.artist &&
+    c.contract &&
+    c.chainId &&
+    c.rpc &&
+    c.origin &&
+    validSource &&
+    validStart &&
+    (catalogSource === 'rpc' || c.indexer),
+  );
+  return { ...c, catalogSource, catalogStartLevel, inventoryPage: page, ready, demo: !ready };
 }
 export const json = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   Response.json(data, { status, headers: { 'Cache-Control': 'no-store', ...headers } });

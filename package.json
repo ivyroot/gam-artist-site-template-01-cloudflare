@@ -28,6 +28,7 @@
   "dependencies": {
     "@ecadlabs/beacon-types": "4.8.5-ecad",
     "@taquito/beacon-wallet": "25.1.1",
+    "@taquito/michelson-encoder": "25.1.1",
     "@taquito/taquito": "25.1.1",
     "@taquito/utils": "25.1.1",
     "react": "^19.2.0",
@@ -37,7 +38,6 @@
     "@cloudflare/vite-plugin": "2.0.0-beta.v.14",
     "@cloudflare/vitest-plugin": "1.7.0",
     "@taquito/michel-codec": "25.1.1",
-    "@taquito/michelson-encoder": "25.1.1",
     "@taquito/signer": "25.1.1",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",

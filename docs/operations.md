@@ -10,18 +10,18 @@ Rotate `SESSION_SECRET` using Cloudflare's runtime secrets mechanism or `cf depl
 
 ## Failure recovery
 
-| Symptom                                     | Action                                                                                                                                                        |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Empty catalog after a confirmed transaction | Run artist admin sync; check RPC/indexer network and lag. Scheduled sync continues every five minutes.                                                        |
-| Sync says another run is active             | Retry after the active run finishes; the lease expires after three minutes if interrupted.                                                                    |
-| Reorganization detected                     | Sync clears chain-derived events and rebuilds from history; retain all artwork and metadata.                                                                  |
-| Wallet confirmation polling failed          | Use the displayed operation hash and chain explorer before resubmitting. Admin hashes are retained in D1 `operations`.                                        |
-| Upload finished but publication failed      | Original is retained. Use the same listing ID to prepare publication again. Do not upload a different original over that ID.                                  |
-| Upload part failed                          | The browser aborts that multipart attempt; retry the upload. R2 also expires incomplete multipart uploads. No published originals are auto-deleted.           |
-| Worker crashed after multipart completion   | The completion handler can hash the already committed object on retry while its upload record exists. Inspect admin status/file catalog before starting over. |
-| Download denied after collection change     | Verify current membership and the buyer's direct or collection license; local metadata cannot override the chain.                                             |
-| Missing object or hash/catalog mismatch     | Restore the exact original and catalog row from backup. Do not change the on-chain hash or silently serve another export.                                     |
-| Expired buyer session                       | Sign in again. Version 1 allows unlimited reauthentication and licensed redownloads.                                                                          |
+| Symptom                                     | Action                                                                                                                                                               |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Empty catalog after a confirmed transaction | Run Inventory sync; check the selected source and catch-up status. Deployed sync runs every five minutes; local dev automatically continues about every ten seconds. |
+| Sync says another run is active             | Retry after the active run finishes; the lease expires after three minutes if interrupted.                                                                           |
+| Reorganization detected                     | Sync clears chain-derived events and rebuilds from history; retain all artwork and metadata.                                                                         |
+| Wallet confirmation polling failed          | Use the displayed operation hash and chain explorer before resubmitting. Admin hashes are retained in D1 `operations`.                                               |
+| Upload finished but publication failed      | Original is retained. Use the same listing ID to prepare publication again. Do not upload a different original over that ID.                                         |
+| Upload part failed                          | The browser aborts that multipart attempt; retry the upload. R2 also expires incomplete multipart uploads. No published originals are auto-deleted.                  |
+| Worker crashed after multipart completion   | The completion handler can hash the already committed object on retry while its upload record exists. Inspect admin status/file catalog before starting over.        |
+| Download denied after collection change     | Verify current membership and the buyer's direct or collection license; local metadata cannot override the chain.                                                    |
+| Missing object or hash/catalog mismatch     | Restore the exact original and catalog row from backup. Do not change the on-chain hash or silently serve another export.                                            |
+| Expired buyer session                       | Sign in again. Version 1 allows unlimited reauthentication and licensed redownloads.                                                                                 |
 
 ## Inventory access
 
@@ -46,3 +46,7 @@ The initial catalog replay reads all retained events for one artist. Profile lar
 Back up `site.config.json` privately: it is ignored by Git, and the versioned `.example` does not contain your settings. Preserve resource IDs, secrets, database, and R2 objects too. Read migration notes, back up, run checks, apply new D1 migrations, and validate in staging before upgrading production. Keep the shared GAM contract address under careful review: an unintended change redirects all future purchase calls.
 
 Run `npm run check` and `npm run deploy:dry-run -- cloudflare-testnet` locally before deploying to Cloudflare. This template has no GitHub Actions or code execution on GitHub; GitHub is only a source repository. Deployment runs through Cloudflare.
+
+## Catalog source upgrades
+
+Apply `0002_catalog_sources.sql` before running the updated Worker. `npm run db:local` applies both current idempotent schema files to simulated storage; deployed/remote databases need `cf d1 migrations apply` against their actual database ID. Back up the database first. See [catalog sources](catalog-sources.md) for source switching, historical receipt requirements, and progress interpretation.

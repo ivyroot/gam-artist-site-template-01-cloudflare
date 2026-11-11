@@ -14,11 +14,15 @@ Cloudflare configuration declares the Worker, assets, D1, two R2 buckets, sessio
 
 ## Trust and data
 
-The chain owns canonical titles, prices, activity flags, file hashes, website references, licenses, membership, and reviews. TzKT supplies enumeration; the site stores ordered events and reconstructs its artist/website's catalog. D1 metadata adds previews, long text, terms, tags, replacement links, and display order. Neither public metadata nor a session grants a license.
+The chain owns canonical titles, prices, activity flags, file hashes, website references, licenses, membership, and reviews. The selected TzKT or RPC event reader supplies enumeration; the site stores ordered events and reconstructs its artist/website's catalog. D1 metadata adds previews, long text, terms, tags, replacement links, and display order. Neither public metadata nor a session grants a license.
 
 Each private request checks the configured RPC chain ID, reads a block level, and uses GAM views at that level. A listing license is sufficient; otherwise an owned collection must currently contain the work. The local membership mirror supplies candidates only. If it is missing a recent addition, access can be temporarily delayed; stale entries cannot grant removed membership. RPC unavailability returns a retryable error instead of serving a file.
 
-The indexer is a trust dependency for catalog presentation. Sync verifies network identity, imports up to five 200-event pages, stores checkpoints transactionally, and compares RPC checkpoint hashes to detect reorganizations. A D1 lease serializes scheduled/manual syncs. A detected reorganization clears chain-derived events and rebuilds them, leaving originals and metadata intact. Manual sync continues long imports; the next scheduled run also continues.
+Catalog synchronization is source-aware. TzKT reads up to five 200-event pages; RPC scans up to six consecutive blocks per invocation and decodes applied GAM events from operation receipts using each event’s Michelson type. Both stop taking new work after a 30-second budget, retain the two-block safety lag, and feed the same projection. RPC normalizes big integers and timestamps to the same representation as TzKT. Empty blocks advance the RPC checkpoint. Each RPC block’s events, provenance, and cursor are committed together.
+
+A renewable D1 lease serializes scheduled/manual syncs. Checkpoint hashes and parent continuity detect reorganizations. Rebuilds clear only chain-derived events/provenance, preserving originals and metadata. `catalog_state` binds cursors to chain, contract, artist, source, start block and TzKT endpoint; switching identities rebuilds history. The first migrated TzKT run adopts existing cursors. Inventory preparation refuses incomplete catch-up. Catalog presentation trusts the selected source; delivery still verifies live chain views.
+
+Deployed Workers retain five-minute scheduled sync. A Vite development plugin invokes the local runtime’s scheduled handler serially about every ten seconds after server startup; it uses the pinned Cloudflare Local Explorer API and exposes no application sync endpoint. Its timer stops with the server. Local storefronts refresh catalog data every ten seconds. Source errors appear in Inventory status and Worker logs. See [catalog sources](catalog-sources.md).
 
 ## Inventory routing
 

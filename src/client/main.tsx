@@ -41,6 +41,15 @@ function App() {
   useEffect(() => {
     reload().catch((e) => setError(e.message));
   }, []);
+  useEffect(() => {
+    if (!data.config.mode?.startsWith('local-')) return;
+    const timer = setInterval(() => {
+      api<Catalog>('/api/catalog')
+        .then(setData)
+        .catch(() => {});
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [data.config.mode]);
   const act = async (fn: () => Promise<unknown>) => {
     setBusy(true);
     setError('');
@@ -748,15 +757,17 @@ function Downloads({
             <h2>Verify your original.</h2>
             <p>Compare the output below with the hash published on-chain.</p>
             <code className="hash">{result.file.hash}</code>
-            <p>
-              <a
-                target="_blank"
-                rel="noreferrer"
-                href={`${data.config.explorer || data.config.indexer.replace(/\/api\./, '/')}/${data.config.contract}`}
-              >
-                Open the contract explorer ↗
-              </a>
-            </p>
+            {(data.config.explorer || data.config.indexer) && (
+              <p>
+                <a
+                  target="_blank"
+                  rel="noreferrer"
+                  href={`${data.config.explorer || data.config.indexer.replace(/\/api\./, '/')}/${data.config.contract}`}
+                >
+                  Open the contract explorer ↗
+                </a>
+              </p>
+            )}
             <label>
               macOS<code>shasum -a 256 -- '{result.file.name.replace(/'/g, "'\\''")}' </code>
             </label>
@@ -823,8 +834,8 @@ function Inventory({
           <h2>Set up your shop.</h2>
           <ol>
             <li>
-              Set your name, artist address, network, shared GAM contract, RPC/indexer, canonical
-              origin, and website ID in <code>site.config.json</code>.
+              Set your name, artist address, network, shared GAM contract, RPC, catalog source,
+              canonical origin, and website ID in <code>site.config.json</code>.
             </li>
             <li>
               Set a random <code>SESSION_SECRET</code> and apply the D1 migration. Follow the
@@ -861,7 +872,9 @@ function Inventory({
                   const r = await api(inventoryApi('sync'), {});
                   await refresh();
                   setNotice(
-                    r.complete ? 'Catalog synced.' : 'Sync page saved. Run sync again to continue.',
+                    r.complete
+                      ? `Catalog synced through block ${r.level}.`
+                      : `Catalog catching up: checkpoint ${r.level}, target ${r.targetLevel}. Run sync again to continue.`,
                   );
                 })
               }
@@ -869,6 +882,13 @@ function Inventory({
               Sync chain ↻
             </button>
           </div>
+          <p className="fine" role="status">
+            Source: {data.sync.source ?? data.config.catalogSource ?? 'tzkt'} · Checkpoint{' '}
+            {data.sync.level}
+            {data.sync.targetLevel != null && ` / target ${data.sync.targetLevel}`}
+            {data.sync.complete ? ' · Caught up to confirmed history' : ' · Catching up'}
+            {data.sync.error && ` · ${data.sync.error}`}
+          </p>
           <details className="setup-card">
             <summary>Website registration and display name</summary>
             <label>
