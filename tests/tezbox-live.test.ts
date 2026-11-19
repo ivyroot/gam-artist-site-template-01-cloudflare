@@ -147,10 +147,17 @@ describe.skipIf(!settings.enabled)('live TezBox GAM + actual Worker routes', () 
       `Live GAM ${settings.contract} on ${chainId}; fresh artist ${artistAddress}, buyer ${buyerAddress}`,
     );
   });
-  it('registers the site and display name with the template transaction builders', async () => {
+  it('updates the artist name separately and registers the site with the template transaction builders', async () => {
+    const named = await call(
+      '/sandbox-stockroom/api/prepare/name',
+      { name: 'TezBox Artist ✓' },
+      artistCookie,
+    );
+    expect(named.status).toBe(200);
+    await transact(asArtist, ((await named.json()) as any).transactions);
     const prepared = await call(
-      '/sandbox-stockroom/api/prepare/setup',
-      { websiteId: '0', name: 'TezBox Artist ✓' },
+      '/sandbox-stockroom/api/prepare/website',
+      { websiteId: '0' },
       artistCookie,
     );
     expect(prepared.status).toBe(200);

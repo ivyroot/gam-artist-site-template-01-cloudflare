@@ -121,6 +121,25 @@ export async function catalog(env: Env): Promise<Catalog> {
     sync: s,
   };
 }
+// Registration must come from confirmed history for this exact artist/network configuration.
+export async function websiteRegistration(env: Env) {
+  const c = config(env);
+  const state = await env.DB.prepare('SELECT identity FROM catalog_state WHERE id=1').first<{
+    identity: string;
+  }>();
+  const status = await syncStatus(env);
+  const usable = state?.identity === catalogIdentity(c);
+  const rows = usable
+    ? await env.DB.prepare(
+        "SELECT payload FROM events WHERE tag='website_set' ORDER BY id DESC",
+      ).all<{ payload: string }>()
+    : { results: [] };
+  const prior = rows.results
+    .map((row) => JSON.parse(row.payload))
+    .find((event) => event.artist === c.artist && String(event.website_id) === c.websiteId);
+  const url: string | null = prior?.url ?? null;
+  return { url, registered: Boolean(status.complete && url === c.origin) };
+}
 export const getWork = (data: Catalog, kind: string, id: string) => {
   const w = data.works.find((w) => w.kind === kind && w.id === id);
   ensure(w, 'This work has not been published on this site.', 404);

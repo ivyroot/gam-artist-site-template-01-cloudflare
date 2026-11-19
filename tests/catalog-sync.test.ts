@@ -5,7 +5,7 @@ import { b58Encode, PrefixV2 } from '@taquito/utils';
 import { Schema } from '@taquito/michelson-encoder';
 import { config, type Env } from '../src/worker/env';
 import { sync, syncStatus } from '../src/worker/sync';
-import { catalog, project } from '../src/worker/catalog';
+import { catalog, project, websiteRegistration } from '../src/worker/catalog';
 import { rpcEvents } from '../src/chain/events';
 import worker from '../src/worker/index';
 import { utf8Hex } from '../src/shared/model';
@@ -118,6 +118,18 @@ beforeEach(async () => {
   calls = [];
   vi.restoreAllMocks();
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => rpc(input));
+});
+it('recognizes website registration when SDK number constructors are minified', async () => {
+  vi.spyOn(Schema.prototype, 'Execute').mockReturnValue({
+    artist,
+    website_id: { _isBigNumber: true, constructor: { name: 't' }, toFixed: () => '0' },
+    url: settings.origin,
+  });
+  await sync(live);
+  expect(await websiteRegistration(live)).toEqual({ registered: true, url: settings.origin });
+  const row = await live.DB.prepare("SELECT payload FROM events WHERE tag='website_set'")
+    .first<{ payload: string }>();
+  expect(JSON.parse(row!.payload).website_id).toBe('0');
 });
 it('RPC readiness requires no TzKT and legacy configurations still require it', () => {
   expect(config(live).ready).toBe(true);
@@ -345,7 +357,7 @@ it('concurrent sync attempts respect the existing lease', async () => {
   await expect(sync(live)).rejects.toThrow(/already running/);
 });
 
-it('authenticated setup and publication cannot prepare against incomplete history', async () => {
+async function artistSession() {
   const signer = await InMemorySigner.fromSecretKey(
     b58Encode(new Uint8Array(32).fill(9), PrefixV2.Ed25519Seed),
   );
@@ -371,8 +383,18 @@ it('authenticated setup and publication cannot prepare against incomplete histor
   });
   expect(verified.status).toBe(200);
   const cookie = verified.headers.get('Set-Cookie')!.split(';')[0];
+  return { call, cookie, address };
+}
+
+it('website registration and publication cannot prepare against incomplete history, but artist names can', async () => {
+  const { call, cookie } = await artistSession();
   head = 200;
-  for (const action of ['setup', 'work']) {
+  const named = await call('/test-stockroom/api/prepare/name', { name: 'Artist' }, cookie);
+  expect(named.status).toBe(200);
+  expect(((await named.json()) as any).transactions.map((tx: any) => tx.entrypoint)).toEqual([
+    'set_name',
+  ]);
+  for (const action of ['website', 'work']) {
     const response = await call(
       `/test-stockroom/api/prepare/${action}`,
       { websiteId: '0', name: 'Artist' },
@@ -381,4 +403,67 @@ it('authenticated setup and publication cannot prepare against incomplete histor
     expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({ error: expect.stringContaining('catching up') });
   }
+});
+
+it('only confirmed registration for this artist, website ID and origin unlocks publishing', async () => {
+  const { call, cookie, address } = await artistSession();
+  blocks.clear();
+  const work = {
+    kind: 'collection',
+    id: '0',
+    website_id: '0',
+    title: 'Collection',
+    description: '',
+    personal_price: '1',
+    commercial_price: '0',
+    active: false,
+    members: [],
+  };
+  const publish = () => call('/test-stockroom/api/prepare/work', work, cookie);
+  let response = await publish();
+  expect(response.status).toBe(409);
+  expect(await response.json()).toMatchObject({
+    error: expect.stringContaining('Register this website'),
+  });
+  const registration = await call(
+    '/test-stockroom/api/prepare/website',
+    { websiteId: '0', name: 'Must not be applied' },
+    cookie,
+  );
+  expect(registration.status).toBe(200);
+  expect(((await registration.json()) as any).transactions.map((tx: any) => tx.entrypoint)).toEqual(
+    ['set_website'],
+  );
+  // A different artist's registration must not unlock this artist's publishing.
+  expect(await websiteRegistration(live)).toEqual({ registered: false, url: null });
+  blocks.set(
+    7,
+    block(7, [event('website_set', { artist, website_id: '0', url: settings.origin })]),
+  );
+  head = 9; // The artist's own event below is not confirmed yet.
+  blocks.set(
+    8,
+    block(8, [event('website_set', { artist: address, website_id: '0', url: settings.origin })]),
+  );
+  expect((await publish()).status).toBe(409);
+  head = 10;
+  expect((await publish()).status).toBe(200);
+  expect(await websiteRegistration(live)).toEqual({ registered: true, url: settings.origin });
+  // A later URL change must lock this deployment again.
+  blocks.set(
+    9,
+    block(9, [
+      event('website_set', { artist: address, website_id: '0', url: 'https://elsewhere.example' }),
+    ]),
+  );
+  head = 11;
+  response = await publish();
+  expect(response.status).toBe(409);
+  expect(await websiteRegistration(live)).toEqual({
+    registered: false,
+    url: 'https://elsewhere.example',
+  });
+  expect(
+    (await call('/test-stockroom/api/prepare/website', { websiteId: '0' }, cookie)).status,
+  ).toBe(409);
 });

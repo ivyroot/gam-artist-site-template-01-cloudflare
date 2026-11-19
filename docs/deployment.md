@@ -79,13 +79,15 @@ npx cf d1 migrations apply YOUR_D1_DATABASE_ID --dir migrations --mode cloudflar
 ## 3. Publish a first work
 
 1. Open the custom `inventoryPage` URL you configured on the canonical site and sign in with the artist wallet. Buyer pages do not link to it.
-2. Register the website and optionally set the artist display name. Resolve an ID conflict before signing; registrations are artist-scoped upserts, so check any use of the same artist in other deployments.
+2. Complete **Website registration**, marked **Required before publishing**. Approve the registration in your wallet and wait for confirmed history to sync. Publishing works and collections stays locked until this artist's website ID is registered to this site's canonical origin; the server enforces the same check. Resolve an ID conflict before signing; registrations are artist-scoped upserts, so check any use of the same artist in other deployments. Registration is required once for this website, not for every publication.
 3. Choose a new listing ID, upload an original, and wait for server-side hash verification. Upload a reduced public preview.
 4. Enter title, type, description, independent tier prices, terms, and activity. Zero disables a tier.
 5. Approve the transaction in the wallet. Wait for confirmation and sync. Both sources import history two levels behind the RPC head (and the TzKT head when selected); an additional block may be needed after confirmation.
 6. Optionally create a collection and select works from this site. Creation/opening is a wallet batch.
 
 Use a new buyer wallet to purchase a display license. After confirmation, sign in and compare the downloaded bytes' SHA-256 with the chain value. Repeat with a collection-only work, a later addition, and a removed member.
+
+**Artist profile · display name** is a separate, optional action. It changes the artist wallet's on-chain name across its websites, can be updated independently at any time, and does not register or rename a website. The storefront heading remains the branding `name` in `site.config.json`.
 
 ## Deployment button
 

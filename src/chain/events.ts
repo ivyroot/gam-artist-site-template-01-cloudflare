@@ -18,7 +18,8 @@ const tags = new Set([
   'reviewed',
 ]);
 function normalize(value: any): any {
-  if (value?.constructor?.name === 'BigNumber') return value.toFixed();
+  // Constructor names change when Vite minifies the SDK. BigNumber's public marker is stable.
+  if (value?._isBigNumber === true && typeof value.toFixed === 'function') return value.toFixed();
   if (Array.isArray(value)) return value.map(normalize);
   if (value && typeof value === 'object')
     return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, normalize(v)]));

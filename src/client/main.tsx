@@ -823,6 +823,19 @@ function Inventory({
   useEffect(() => {
     if (user.role === 'admin') act(refresh);
   }, [user.role]);
+  useEffect(() => {
+    if (user.role !== 'admin') return;
+    let cancelled = false;
+    api(inventoryApi('status'))
+      .then((next) => {
+        if (!cancelled) setStatus(next);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user.role, data.sync.updated]);
+  const websiteRegistered = Boolean(data.sync.complete && status?.website?.registered);
   const change = (field: keyof Work, value: unknown) => setW((old) => ({ ...old, [field]: value }));
   return (
     <section className="page admin">
@@ -890,31 +903,77 @@ function Inventory({
             {data.sync.error && ` · ${data.sync.error}`}
           </p>
           <details className="setup-card">
-            <summary>Website registration and display name</summary>
+            <summary>Artist profile · display name</summary>
+            <p>
+              Your on-chain artist name belongs to your wallet across its websites. Update it any
+              time; it does not rename this website or change its storefront heading.
+            </p>
             <label>
-              Display name
+              Artist display name
               <input value={name} onChange={(e) => setName(e.target.value)} />
             </label>
             <button
-              disabled={busy}
+              disabled={busy || !name.trim()}
               onClick={() =>
                 act(async () => {
-                  const r = await api(inventoryApi('prepare/setup'), {
-                    websiteId: data.config.websiteId,
-                    name,
-                  });
+                  const r = await api(inventoryApi('prepare/name'), { name });
                   await send(data.config, r.transactions, setNotice, true);
-                  await refresh();
+                  setNotice('Artist display name updated on-chain.');
                 })
               }
             >
-              Register this website in wallet ↗
+              Update artist name in wallet ↗
             </button>
-            <p className="fine">
-              Canonical origin: {data.config.origin}. Website IDs and file hashes become fixed when
-              referenced by a listing.
-            </p>
           </details>
+          <section className="setup-card" aria-labelledby="website-registration-heading">
+            <p className="eyebrow">
+              {websiteRegistered ? 'READY TO PUBLISH' : 'REQUIRED BEFORE PUBLISHING'}
+            </p>
+            <h2 id="website-registration-heading">Website registration</h2>
+            <p role="status">
+              {websiteRegistered
+                ? 'This website is registered. You can publish works and collections.'
+                : !data.sync.complete
+                  ? 'Checking confirmed website registration. Publishing stays locked until chain sync finishes.'
+                  : status?.website?.url && status.website.url !== data.config.origin
+                    ? 'This website ID is registered to a different address. Correct the website configuration before publishing.'
+                    : 'Register this website on-chain before publishing your first work or collection.'}
+            </p>
+            <p>
+              Website address: <strong>{data.config.origin}</strong> · Website ID{' '}
+              {data.config.websiteId}
+            </p>
+            {!websiteRegistered && (
+              <button
+                className="primary"
+                disabled={
+                  busy ||
+                  !data.sync.complete ||
+                  !status ||
+                  Boolean(status.website?.url && status.website.url !== data.config.origin)
+                }
+                onClick={() =>
+                  act(async () => {
+                    const r = await api(inventoryApi('prepare/website'), {
+                      websiteId: data.config.websiteId,
+                    });
+                    await send(data.config, r.transactions, setNotice, true);
+                    await api(inventoryApi('sync'), {});
+                    await refresh();
+                    setNotice(
+                      'Website transaction confirmed. Publishing unlocks when confirmed registration is synced.',
+                    );
+                  })
+                }
+              >
+                Register this website in wallet ↗
+              </button>
+            )}
+            <p className="fine">
+              Register once for this website. Website registration is separate from your artist
+              name. A listing’s website ID becomes fixed when published.
+            </p>
+          </section>
           <div className="admin-layout">
             <aside>
               <h3>Your catalog</h3>
@@ -960,6 +1019,12 @@ function Inventory({
               className="editor"
               onSubmit={(e) => {
                 e.preventDefault();
+                if (!websiteRegistered) {
+                  setNotice(
+                    'Register this website and wait for confirmed chain sync before publishing.',
+                  );
+                  return;
+                }
                 act(async () => {
                   const r = await api(inventoryApi('prepare/work'), w);
                   await send(data.config, r.transactions, setNotice, true);
@@ -1179,10 +1244,21 @@ function Inventory({
                   </label>
                 </div>
               )}
-              <button className="primary full" disabled={busy} type="submit">
-                {busy ? 'Working…' : 'Review & approve in wallet ↗'}
+              <button
+                className="primary full"
+                disabled={busy || !websiteRegistered}
+                type="submit"
+                aria-describedby="publish-requirement"
+              >
+                {!websiteRegistered
+                  ? 'Publishing locked · register website first'
+                  : busy
+                    ? 'Working…'
+                    : 'Review & approve in wallet ↗'}
               </button>
-              <p className="fine">
+              <p className="fine" id="publish-requirement">
+                {!websiteRegistered &&
+                  'Website registration must be confirmed before publishing. You can prepare files and details now. '}
                 On-chain writes require wallet approval and network fees. Public pages update after
                 confirmed events are indexed.
               </p>

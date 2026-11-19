@@ -3,7 +3,7 @@ import { validateAddress, ValidationResult } from '@taquito/utils';
 import { nat, type Work } from '../shared/model';
 import { setItem, setName, setWebsite, setWork } from '../chain/parameters';
 import { session } from './auth';
-import { catalog, sync } from './catalog';
+import { catalog, sync, websiteRegistration } from './catalog';
 import { syncStatus } from './sync';
 import { body, config, ensure, HttpError, json, rateLimit, sameOrigin, type Env } from './env';
 const safeType = (type: string) =>
@@ -90,16 +90,22 @@ export async function admin(req: Request, env: Env, path: string) {
       operations: operations.results,
       config: c,
       sync: await syncStatus(env),
+      website: await websiteRegistration(env),
     });
   }
   if (path === '/api/admin/sync') {
     ensure(req.method === 'POST', 'Use POST.', 405);
     return json(await sync(env));
   }
-  if (path === '/api/admin/prepare/setup') {
-    const v = await body<{ websiteId: string; name: string }>(req);
+  if (path === '/api/admin/prepare/name') {
+    const v = await body<{ name: string }>(req);
+    const name = text(v.name, 200).trim();
+    ensure(name, 'Enter your artist display name.');
+    return json({ transactions: [setName(name)] });
+  }
+  if (path === '/api/admin/prepare/website') {
+    const v = await body<{ websiteId: string }>(req);
     nat(v.websiteId);
-    text(v.name ?? '', 200);
     ensure(v.websiteId === c.websiteId, 'Use the website ID configured for this deployment.');
     // Reconcile first so an artist sees existing registrations before approving an update.
     const caughtUp = await sync(env);
@@ -108,19 +114,14 @@ export async function admin(req: Request, env: Env, path: string) {
       'Catalog is catching up. Run Sync chain again before preparing this transaction.',
       409,
     );
-    const rows = await env.DB.prepare(
-      "SELECT payload FROM events WHERE tag='website_set' ORDER BY id DESC",
-    ).all<{ payload: string }>();
-    const prior = rows.results
-      .map((r) => JSON.parse(r.payload))
-      .find((p) => String(p.website_id) === v.websiteId);
+    const prior = await websiteRegistration(env);
     ensure(
-      !prior || prior.url === c.origin,
+      !prior.url || prior.url === c.origin,
       'That website ID already points elsewhere. Use its existing deployment or explicitly configure a new unused ID.',
       409,
     );
     return json({
-      transactions: [...(v.name ? [setName(v.name)] : []), setWebsite(v.websiteId, c.origin)],
+      transactions: [setWebsite(v.websiteId, c.origin)],
     });
   }
   if (path === '/api/admin/prepare/work') {
@@ -132,6 +133,11 @@ export async function admin(req: Request, env: Env, path: string) {
     );
     const w = validateWork(await body<Work>(req));
     ensure(w.website_id === c.websiteId, 'Work must belong to this deployment.');
+    ensure(
+      (await websiteRegistration(env)).registered,
+      'Register this website and wait for confirmation before publishing works or collections.',
+      409,
+    );
     const data = await catalog(env);
     const existing = data.works.find((x) => x.id === w.id && x.kind === w.kind);
     if (w.kind === 'listing') {
