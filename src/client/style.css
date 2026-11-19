@@ -847,8 +847,54 @@ label small {
   font-size: 9px;
   margin-top: 6px;
 }
+.catalog-item.selected {
+  background: #edf0e4;
+  box-shadow: inset 3px 0 0 var(--orange);
+  padding-left: 12px;
+}
+.editor-selection {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.editor-selection a {
+  text-decoration: underline;
+}
 .editor {
   max-width: 720px;
+  scroll-margin-top: 24px;
+}
+.editor-new {
+  padding: clamp(20px, 3.2vw, 38px);
+  border: 1px solid #d4bea0;
+  border-top: 4px solid #c67a45;
+  border-radius: 6px 18px 8px 6px;
+  background-color: #eee0c8;
+  background-image:
+    radial-gradient(ellipse at 95% 0%, #e6b78b55, transparent 48%),
+    radial-gradient(ellipse at 0% 70%, #fff8e777, transparent 60%),
+    radial-gradient(#926c3920 0.6px, transparent 0.8px);
+  background-size:
+    auto,
+    auto,
+    5px 5px;
+  box-shadow:
+    inset 0 1px 0 #fffaf0,
+    0 4px 0 -1px #e4d4b9,
+    0 5px 0 -1px #cdbb9d,
+    0 15px 32px -20px #65503870;
+}
+.editor-new input:not([type='checkbox']):not([type='file']),
+.editor-new textarea,
+.editor-new select {
+  background: #fffaf0e8;
+  border-color: #cebea5;
+}
+.editor-new .upload-box {
+  background: #fff9ec66;
+  border-color: #b39a75;
+}
+.editor-new .message {
+  margin-inline: 0;
 }
 .editor .section-head {
   padding-top: 0;
@@ -856,6 +902,17 @@ label small {
 }
 .editor h2 {
   font-size: 30px;
+}
+.record-id {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 24px;
+  font-size: 12px;
+}
+.record-id strong {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
 }
 .editor button {
   margin-bottom: 10px;

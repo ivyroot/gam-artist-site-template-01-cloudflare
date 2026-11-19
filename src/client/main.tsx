@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { api, inventoryApi, uploadOriginal } from './api';
 import { login, disconnect, send } from './wallet';
@@ -803,7 +803,7 @@ function Inventory({
   setNotice,
 }: Common & { reload: () => Promise<void> }) {
   const empty = (kind: Kind = 'listing'): Work => ({
-    id: '0',
+    id: '',
     kind,
     title: '',
     description: '',
@@ -818,7 +818,29 @@ function Inventory({
     [file, setFile] = useState<File | null>(null),
     [progress, setProgress] = useState(0),
     [status, setStatus] = useState<any>(null),
+    [publishError, setPublishError] = useState(''),
+    [publishProgress, setPublishProgress] = useState(''),
+    [selectedWork, setSelectedWork] = useState<string | null>(null),
+    [editorVersion, setEditorVersion] = useState(0),
     [name, setName] = useState('');
+  const editor = useRef<HTMLFormElement>(null);
+  const selectWork = (work: Work, published = false) => {
+    setW({ ...work });
+    setSelectedWork(published ? `${work.kind}:${work.id}` : null);
+    setEditorVersion((version) => version + 1);
+    setFile(null);
+    setProgress(0);
+    setPublishError('');
+    setPublishProgress('');
+    requestAnimationFrame(() =>
+      editor.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    );
+  };
+  const newWork = (kind: Kind) =>
+    act(async () => {
+      const { id } = await api<{ id: string }>(inventoryApi('next-id'), { kind });
+      selectWork({ ...empty(kind), id });
+    });
   const refresh = async () => {
     setStatus(await api(inventoryApi('status')));
     await reload();
@@ -995,37 +1017,32 @@ function Inventory({
           <div className="admin-layout">
             <aside>
               <h3>Your catalog</h3>
-              <button
-                className="secondary full"
-                onClick={() => {
-                  setW(empty());
-                  setFile(null);
-                }}
-              >
+              <button className="secondary full" disabled={busy} onClick={() => newWork('listing')}>
                 + New work
               </button>
               <button
                 className="secondary full"
-                onClick={() => {
-                  setW(empty('collection'));
-                  setFile(null);
-                }}
+                disabled={busy}
+                onClick={() => newWork('collection')}
               >
                 + New collection
               </button>
+              {data.works.length > 0 && (
+                <>
+                  <h3>Edit</h3>
+                  <p className="fine">Select a published item to change it.</p>
+                </>
+              )}
               {data.works.map((x) => (
                 <button
-                  className="catalog-item"
+                  className={`catalog-item${selectedWork === `${x.kind}:${x.id}` ? ' selected' : ''}`}
+                  aria-pressed={selectedWork === `${x.kind}:${x.id}`}
                   key={`${x.kind}:${x.id}`}
-                  onClick={() => {
-                    setW(x);
-                    setFile(null);
-                    setProgress(0);
-                  }}
+                  onClick={() => selectWork(x, true)}
                 >
                   <span>{x.title}</span>
                   <small>
-                    {x.kind} #{x.id}
+                    {x.kind} #{x.id} · {selectedWork === `${x.kind}:${x.id}` ? 'Editing' : 'Edit'}
                   </small>
                 </button>
               ))}
@@ -1034,38 +1051,114 @@ function Inventory({
               )}
             </aside>
             <form
-              className="editor"
+              ref={editor}
+              key={editorVersion}
+              className={`editor${selectedWork ? '' : ' editor-new'}`}
+              noValidate
               onSubmit={(e) => {
                 e.preventDefault();
+                setPublishError('');
+                setPublishProgress('');
+                if (!w.id) {
+                  setPublishError('Choose + New work or + New collection first to assign an ID.');
+                  return;
+                }
+                const invalid = Array.from(e.currentTarget.elements).find(
+                  (field): field is HTMLInputElement | HTMLTextAreaElement =>
+                    (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) &&
+                    !field.validity.valid,
+                );
+                if (invalid) {
+                  const label = invalid.labels?.[0]?.firstChild?.textContent?.trim() || 'Field';
+                  setPublishError(`${label}: ${invalid.validationMessage}`);
+                  invalid.focus();
+                  invalid.reportValidity();
+                  return;
+                }
                 if (!websiteRegistered) {
-                  setNotice(
+                  setPublishError(
                     'Register this website and wait for confirmed chain sync before publishing.',
                   );
                   return;
                 }
+                if (w.kind === 'listing' && !w.file_hash) {
+                  setPublishError(
+                    'Upload and verify your private original first. Choosing a file does not upload it—click “Upload & verify original” before publishing.',
+                  );
+                  return;
+                }
                 act(async () => {
-                  const r = await api(inventoryApi('prepare/work'), w);
-                  await send(data.config, r.transactions, setNotice, true);
-                  await refresh();
+                  try {
+                    setPublishProgress('Checking your artwork before opening the wallet…');
+                    const r = await api(inventoryApi('prepare/work'), w);
+                    await send(
+                      data.config,
+                      r.transactions,
+                      (message) => {
+                        setPublishProgress(message);
+                        setNotice(message);
+                      },
+                      true,
+                    );
+                    await refresh();
+                    setSelectedWork(`${w.kind}:${w.id}`);
+                  } catch (error) {
+                    setPublishProgress('');
+                    setPublishError(
+                      error instanceof Error ? error.message : 'Publishing failed. Please retry.',
+                    );
+                    throw error;
+                  }
                 });
               }}
             >
               <div className="section-head">
-                <h2>{w.kind === 'listing' ? 'Publish a work' : 'Shape a collection'}</h2>
+                <h2>
+                  {selectedWork
+                    ? w.kind === 'listing'
+                      ? 'Edit work'
+                      : 'Edit collection'
+                    : w.kind === 'listing'
+                      ? 'New work'
+                      : 'New collection'}
+                </h2>
                 <span className="eyebrow">{w.kind}</span>
               </div>
+              {selectedWork ? (
+                <div className="editor-selection" role="status">
+                  <p>
+                    Editing{' '}
+                    <strong>
+                      {data.works.find((work) => `${work.kind}:${work.id}` === selectedWork)?.title}
+                    </strong>
+                    {' · '}
+                    <a href={`/${selectedWork.replace(':', '/')}`}>
+                      {w.kind === 'listing' ? 'View Artwork Page' : 'View Collection Page'}
+                    </a>
+                  </p>
+                  <p className="fine">
+                    You are editing a published item. Saving updates this item. To add another
+                    artwork, choose + New work.
+                  </p>
+                </div>
+              ) : (
+                <p className="fine">
+                  Create a new {w.kind === 'listing' ? 'artwork' : 'collection'}. Its ID is assigned
+                  automatically when you click + New {w.kind === 'listing' ? 'work' : 'collection'}.
+                </p>
+              )}
+              <p className="record-id">
+                <span>
+                  {selectedWork ? '' : 'Next '}
+                  {w.kind === 'listing' ? 'Listing' : 'Collection'} ID
+                </span>
+                <strong>
+                  {w.id ||
+                    `Click + New ${w.kind === 'listing' ? 'work' : 'collection'} to assign an ID`}
+                </strong>
+              </p>
               <label>
-                {w.kind === 'listing' ? 'Listing' : 'Collection'} ID
-                <input
-                  value={w.id}
-                  pattern="[0-9]+"
-                  required
-                  onChange={(e) => change('id', e.target.value)}
-                />
-                <small>Use a new unused ID for new work. Existing IDs edit that record.</small>
-              </label>
-              <label>
-                Title
+                Title (required)
                 <input required value={w.title} onChange={(e) => change('title', e.target.value)} />
               </label>
               {w.kind === 'listing' && (
@@ -1098,6 +1191,7 @@ function Inventory({
                     key={`p-${w.kind}-${w.id}`}
                     defaultValue={tez(w.personal_price)}
                     inputMode="decimal"
+                    onInput={(e) => e.currentTarget.setCustomValidity('')}
                     onBlur={(e) => {
                       try {
                         change('personal_price', mutez(e.target.value));
@@ -1115,6 +1209,7 @@ function Inventory({
                     key={`c-${w.kind}-${w.id}`}
                     defaultValue={tez(w.commercial_price)}
                     inputMode="decimal"
+                    onInput={(e) => e.currentTarget.setCustomValidity('')}
                     onBlur={(e) => {
                       try {
                         change('commercial_price', mutez(e.target.value));
@@ -1139,33 +1234,54 @@ function Inventory({
                 Open for direct purchase
               </label>
               {w.kind === 'listing' ? (
-                <div className="upload-box">
-                  <h3>Private original</h3>
-                  <p>One listing, one immutable file. Upload before approving the listing.</p>
-                  <input
-                    type="file"
-                    aria-label="Original artwork file"
-                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                  />
-                  <button
-                    type="button"
-                    disabled={busy || !file || file.size === 0}
-                    onClick={() =>
-                      act(async () => {
-                        const r = await uploadOriginal(file!, w.id, setProgress);
-                        change('file_hash', r.hash);
-                        setNotice(`Original verified: ${r.hash}`);
-                        await refresh();
-                      })
-                    }
-                  >
-                    Upload & verify original ↑
-                  </button>
-                  {progress > 0 && (
-                    <progress max={100} value={progress} aria-label="Upload progress" />
-                  )}
-                  {w.file_hash && <code className="hash">{w.file_hash}</code>}
-                </div>
+                selectedWork ? (
+                  <p className="editor-selection">
+                    <a href={`/download/${w.id}`}>View Original Download Page</a>
+                  </p>
+                ) : (
+                  <div className="upload-box">
+                    <h3>Private original (required)</h3>
+                    <p>Choose a file, then click Upload &amp; verify original before publishing.</p>
+                    <p className="fine" role="status">
+                      {w.file_hash
+                        ? 'Original verified. Ready for publication.'
+                        : 'No verified original yet. Selecting a file alone does not upload it.'}
+                    </p>
+                    <input
+                      type="file"
+                      aria-label="Original artwork file"
+                      onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                    />
+                    <button
+                      type="button"
+                      disabled={busy || !w.id || !file || file.size === 0}
+                      onClick={() =>
+                        act(async () => {
+                          setPublishError('');
+                          try {
+                            const r = await uploadOriginal(file!, w.id, setProgress);
+                            change('file_hash', r.hash);
+                            setNotice(`Original verified: ${r.hash}`);
+                            await refresh();
+                          } catch (error) {
+                            setPublishError(
+                              error instanceof Error
+                                ? error.message
+                                : 'Original upload failed. Please retry.',
+                            );
+                            throw error;
+                          }
+                        })
+                      }
+                    >
+                      Upload & verify original ↑
+                    </button>
+                    {progress > 0 && (
+                      <progress max={100} value={progress} aria-label="Upload progress" />
+                    )}
+                    {w.file_hash && <code className="hash">{w.file_hash}</code>}
+                  </div>
+                )
               ) : (
                 <fieldset>
                   <legend>Works in this collection</legend>
@@ -1262,17 +1378,31 @@ function Inventory({
                   </label>
                 </div>
               )}
+              {publishError && (
+                <div className="message error" role="alert">
+                  {publishError}
+                </div>
+              )}
+              {publishProgress && (
+                <div className="message" role="status">
+                  {publishProgress}
+                </div>
+              )}
               <button
                 className="primary full"
-                disabled={busy || !websiteRegistered}
+                disabled={busy || !websiteRegistered || !w.id}
                 type="submit"
                 aria-describedby="publish-requirement"
               >
                 {!websiteRegistered
                   ? 'Publishing locked · register website first'
-                  : busy
-                    ? 'Working…'
-                    : 'Review & approve in wallet ↗'}
+                  : !w.id
+                    ? 'Choose + New work or + New collection first'
+                    : busy
+                      ? 'Working…'
+                      : selectedWork
+                        ? 'Review & save changes in wallet ↗'
+                        : 'Review & publish in wallet ↗'}
               </button>
               <p className="fine" id="publish-requirement">
                 {!websiteRegistered &&

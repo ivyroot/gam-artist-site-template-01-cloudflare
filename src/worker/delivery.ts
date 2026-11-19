@@ -66,7 +66,8 @@ export async function download(req: Request, env: Env, kind: Kind, id: string, f
     return json({ work: w, members: works, downloaded: markers.results.map((x) => x.listing_id) });
   }
   ensure(
-    await entitled(data, s.address, id, block),
+    (s.role === 'admin' && s.address === data.config.artist) ||
+      (await entitled(data, s.address, id, block)),
     'This wallet has no current license for this work.',
     403,
   );

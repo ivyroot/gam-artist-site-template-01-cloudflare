@@ -97,6 +97,35 @@ export async function admin(req: Request, env: Env, path: string) {
     ensure(req.method === 'POST', 'Use POST.', 405);
     return json(await sync(env));
   }
+  if (path === '/api/admin/next-id') {
+    const { kind } = await body<{ kind: string }>(req);
+    ensure(kind === 'listing' || kind === 'collection', 'Invalid record type.');
+    ensure(
+      (await sync(env)).complete,
+      'Catalog is catching up. Run Sync chain before creating a new item.',
+      409,
+    );
+    // IDs belong to the artist across all their websites, not only the visible catalog.
+    const events = await env.DB.prepare('SELECT payload FROM events WHERE tag=?')
+      .bind(kind === 'listing' ? 'listed' : 'collection_set')
+      .all<{ payload: string }>();
+    const drafts = await env.DB.prepare('SELECT id FROM drafts WHERE kind=?')
+      .bind(kind)
+      .all<{ id: string }>();
+    const ids = events.results.map(({ payload }) => JSON.parse(payload)[`${kind}_id`]);
+    ids.push(...drafts.results.map(({ id }) => id));
+    if (kind === 'listing') {
+      const files = await env.DB.prepare(
+        'SELECT listing_id FROM files UNION SELECT listing_id FROM uploads',
+      ).all<{ listing_id: string }>();
+      ids.push(...files.results.map(({ listing_id }) => listing_id));
+    }
+    const next = ids.reduce((next: bigint, id: string) => {
+      const candidate = BigInt(nat(id)) + 1n;
+      return candidate > next ? candidate : next;
+    }, 0n);
+    return json({ id: nat(next.toString()) });
+  }
   if (path === '/api/admin/prepare/name') {
     const v = await body<{ name: string }>(req);
     const name = text(v.name, 200).trim();

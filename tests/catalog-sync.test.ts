@@ -482,3 +482,33 @@ it('only confirmed registration for this artist, website ID and origin unlocks p
     (await call('/test-stockroom/api/prepare/website', { websiteId: '0' }, cookie)).status,
   ).toBe(409);
 });
+
+it('calculates next IDs across the artist websites and reserved originals without losing integer precision', async () => {
+  const { call, cookie, address } = await artistSession();
+  blocks.clear();
+  const next = async (kind: string) => {
+    const response = await call('/test-stockroom/api/next-id', { kind }, cookie);
+    expect(response.status).toBe(200);
+    return ((await response.json()) as any).id;
+  };
+  expect(await next('listing')).toBe('0');
+  await live.DB.prepare("INSERT INTO events VALUES(100,1,'listed',?)")
+    .bind(JSON.stringify({ artist: address, listing_id: '9007199254740993', website_id: '99' }))
+    .run();
+  expect(await next('listing')).toBe('9007199254740994');
+  await live.DB.prepare('INSERT INTO files VALUES(?,?,?,?,?,?,?)')
+    .bind(
+      '9007199254740995',
+      'reserved-original',
+      'art.png',
+      'image/png',
+      10,
+      'ab'.repeat(32),
+      Date.now(),
+    )
+    .run();
+  expect(await next('listing')).toBe('9007199254740996');
+  expect(await next('collection')).toBe('0');
+  await live.DB.prepare("INSERT INTO drafts VALUES('collection','7','{}')").run();
+  expect(await next('collection')).toBe('8');
+});

@@ -175,6 +175,17 @@ async function seedWork() {
     .run();
 }
 describe('private delivery', () => {
+  it('lets the authenticated artist inspect and download their own original without a purchase', async () => {
+    await seedWork();
+    const { cookie } = await signIn('admin');
+    rpcLicense('0', '0');
+    const page = await call('/api/download/0', undefined, cookie);
+    expect(page.status).toBe(200);
+    expect(((await page.json()) as any).file.name).toBe('夜.png');
+    const file = await call('/download/0/file', undefined, cookie);
+    expect(file.status).toBe(200);
+    expect(await file.text()).toBe('the exact original');
+  });
   it('serves exact bytes for an existing license even when the listing is closed', async () => {
     await seedWork();
     const { cookie } = await signIn();
