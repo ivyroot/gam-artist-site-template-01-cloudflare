@@ -31,6 +31,7 @@
     "@taquito/michelson-encoder": "25.1.1",
     "@taquito/taquito": "25.1.1",
     "@taquito/utils": "25.1.1",
+    "buffer": "6.0.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
