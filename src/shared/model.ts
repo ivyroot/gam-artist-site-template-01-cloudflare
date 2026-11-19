@@ -44,6 +44,7 @@ export interface SiteConfig {
 }
 export interface Catalog {
   config: SiteConfig;
+  artistName?: string | null;
   works: Work[];
   reviews: Review[];
   sync: {

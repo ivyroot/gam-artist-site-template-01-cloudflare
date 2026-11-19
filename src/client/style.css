@@ -104,6 +104,17 @@ header {
   align-items: center;
   gap: 10px;
 }
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.brand-artist {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--muted);
+}
 .brand-mark {
   font-size: 35px;
   line-height: 1;

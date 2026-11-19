@@ -3,6 +3,7 @@ import { config, ensure, type Env } from './env';
 import { syncStatus, catalogIdentity } from './sync';
 export { sync } from './sync';
 import type { ChainEvent as Event } from '../chain/events';
+import { artistName } from '../chain/rpc';
 const text = (v: unknown) => (typeof v === 'string' ? fromHex(v) : '');
 const option = (v: any) => (v && typeof v === 'object' && 'Some' in v ? v.Some : v);
 export function project(
@@ -116,6 +117,7 @@ export async function catalog(env: Env): Promise<Catalog> {
   const s = await syncStatus(env);
   return {
     config: publicConfig,
+    artistName: c.ready ? await artistName(c).catch(() => null) : null,
     works: works.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id)),
     reviews: projection.reviews,
     sync: s,
@@ -138,7 +140,15 @@ export async function websiteRegistration(env: Env) {
     .map((row) => JSON.parse(row.payload))
     .find((event) => event.artist === c.artist && String(event.website_id) === c.websiteId);
   const url: string | null = prior?.url ?? null;
-  return { url, registered: Boolean(status.complete && url === c.origin) };
+  const registered = Boolean(status.complete && url === c.origin);
+  const timestamp = prior?.timestamp;
+  const date =
+    timestamp == null
+      ? null
+      : new Date(/^\d+$/.test(String(timestamp)) ? Number(timestamp) * 1000 : timestamp);
+  const registeredAt =
+    registered && date && Number.isFinite(date.getTime()) ? date.toISOString() : null;
+  return { url, registered, registeredAt };
 }
 export const getWork = (data: Catalog, kind: string, id: string) => {
   const w = data.works.find((w) => w.kind === kind && w.id === id);

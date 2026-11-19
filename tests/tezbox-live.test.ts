@@ -155,6 +155,7 @@ describe.skipIf(!settings.enabled)('live TezBox GAM + actual Worker routes', () 
     );
     expect(named.status).toBe(200);
     await transact(asArtist, ((await named.json()) as any).transactions);
+    expect(((await (await call('/api/catalog')).json()) as any).artistName).toBe('TezBox Artist ✓');
     const prepared = await call(
       '/sandbox-stockroom/api/prepare/website',
       { websiteId: '0' },

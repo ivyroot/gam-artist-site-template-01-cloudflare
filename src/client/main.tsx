@@ -82,7 +82,10 @@ function App() {
       <header>
         <a className="brand" href="/">
           <span className="brand-mark">✳</span>
-          {data.config.name}
+          <span className="brand-text">
+            <span>{data.config.name}</span>
+            {data.artistName && <span className="brand-artist">{data.artistName}</span>}
+          </span>
         </a>
         <nav>
           <a className={path === '/' ? 'selected' : ''} href="/">
@@ -918,6 +921,7 @@ function Inventory({
                 act(async () => {
                   const r = await api(inventoryApi('prepare/name'), { name });
                   await send(data.config, r.transactions, setNotice, true);
+                  await reload();
                   setNotice('Artist display name updated on-chain.');
                 })
               }
@@ -970,8 +974,22 @@ function Inventory({
               </button>
             )}
             <p className="fine">
-              Register once for this website. Website registration is separate from your artist
-              name. A listing’s website ID becomes fixed when published.
+              {websiteRegistered && status?.website?.registeredAt ? (
+                <>
+                  Registered on{' '}
+                  <time dateTime={status.website.registeredAt}>
+                    {new Date(status.website.registeredAt).toLocaleDateString('en-US', {
+                      month: '2-digit',
+                      day: '2-digit',
+                      year: 'numeric',
+                    })}
+                  </time>
+                </>
+              ) : websiteRegistered ? (
+                'Website registration confirmed.'
+              ) : (
+                'Register once for this website. Website registration is separate from your artist name. A listing’s website ID becomes fixed when published.'
+              )}
             </p>
           </section>
           <div className="admin-layout">

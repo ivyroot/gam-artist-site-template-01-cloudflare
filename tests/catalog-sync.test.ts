@@ -124,11 +124,17 @@ it('recognizes website registration when SDK number constructors are minified', 
     artist,
     website_id: { _isBigNumber: true, constructor: { name: 't' }, toFixed: () => '0' },
     url: settings.origin,
+    timestamp: '2026-11-19T04:23:07.000Z',
   });
   await sync(live);
-  expect(await websiteRegistration(live)).toEqual({ registered: true, url: settings.origin });
-  const row = await live.DB.prepare("SELECT payload FROM events WHERE tag='website_set'")
-    .first<{ payload: string }>();
+  expect(await websiteRegistration(live)).toEqual({
+    registered: true,
+    url: settings.origin,
+    registeredAt: '2026-11-19T04:23:07.000Z',
+  });
+  const row = await live.DB.prepare("SELECT payload FROM events WHERE tag='website_set'").first<{
+    payload: string;
+  }>();
   expect(JSON.parse(row!.payload).website_id).toBe('0');
 });
 it('RPC readiness requires no TzKT and legacy configurations still require it', () => {
@@ -435,7 +441,11 @@ it('only confirmed registration for this artist, website ID and origin unlocks p
     ['set_website'],
   );
   // A different artist's registration must not unlock this artist's publishing.
-  expect(await websiteRegistration(live)).toEqual({ registered: false, url: null });
+  expect(await websiteRegistration(live)).toEqual({
+    registered: false,
+    url: null,
+    registeredAt: null,
+  });
   blocks.set(
     7,
     block(7, [event('website_set', { artist, website_id: '0', url: settings.origin })]),
@@ -448,7 +458,11 @@ it('only confirmed registration for this artist, website ID and origin unlocks p
   expect((await publish()).status).toBe(409);
   head = 10;
   expect((await publish()).status).toBe(200);
-  expect(await websiteRegistration(live)).toEqual({ registered: true, url: settings.origin });
+  expect(await websiteRegistration(live)).toEqual({
+    registered: true,
+    url: settings.origin,
+    registeredAt: null,
+  });
   // A later URL change must lock this deployment again.
   blocks.set(
     9,
@@ -462,6 +476,7 @@ it('only confirmed registration for this artist, website ID and origin unlocks p
   expect(await websiteRegistration(live)).toEqual({
     registered: false,
     url: 'https://elsewhere.example',
+    registeredAt: null,
   });
   expect(
     (await call('/test-stockroom/api/prepare/website', { websiteId: '0' }, cookie)).status,

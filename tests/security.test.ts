@@ -447,3 +447,35 @@ it('rejects a challenge from another execution origin sharing the same database'
   );
   expect(response.status).toBe(401);
 });
+
+describe('optional on-chain artist name', () => {
+  it('shows the current name and follows independent name changes without listing events', async () => {
+    let name: string | null = 'Night Studio ✓';
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith('/chain_id')) return Response.json('NetTest');
+      if (url.endsWith('/head/header')) return Response.json({ level: 100, hash: 'B100' });
+      if (url.endsWith('/storage'))
+        return Response.json({ prim: 'Pair', args: [{ int: '4' }, { int: '5' }] });
+      if (url.endsWith('/pack_data'))
+        return Response.json({
+          packed: '050a000000160000b2e19a9e74440d86c59f13dab8a18ff873e889ea',
+        });
+      if (url.includes('/blocks/B100/context/big_maps/4/expr'))
+        return name === null
+          ? new Response(null, { status: 404 })
+          : Response.json({ bytes: utf8Hex(name) });
+      throw new Error('Unexpected RPC request');
+    });
+    expect(((await (await call('/api/catalog')).json()) as any).artistName).toBe(name);
+    name = 'New artist name';
+    expect(((await (await call('/api/catalog')).json()) as any).artistName).toBe(name);
+    name = null;
+    expect(((await (await call('/api/catalog')).json()) as any).artistName).toBeNull();
+  });
+  it('keeps the catalog available when the optional name cannot be read', async () => {
+    const response = await call('/api/catalog');
+    expect(response.status).toBe(200);
+    expect(((await response.json()) as any).artistName).toBeNull();
+  });
+});
