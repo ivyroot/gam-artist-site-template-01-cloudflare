@@ -90,17 +90,17 @@ export async function download(req: Request, env: Env, kind: Kind, id: string, f
     size: number;
     hash: string;
   }>();
-  ensure(stored, 'The original file is unavailable. Contact the artist.', 404);
+  ensure(stored, 'The artwork file is unavailable. Contact the artist.', 404);
   ensure(
     stored!.hash === w.file_hash,
-    'Stored original does not match the published hash. Contact the artist.',
+    'Stored artwork does not match the published hash. Contact the artist.',
     503,
   );
   if (!file)
     return json({ work: w, file: { name: stored!.name, size: stored!.size, hash: stored!.hash } });
   // Range is deliberately unsupported in v1; every retry is a fresh authorized stream.
   const object = await env.ART_BUCKET.get(stored!.object_key);
-  ensure(object, 'The original file is missing. Contact the artist.', 404);
+  ensure(object, 'The artwork file is missing. Contact the artist.', 404);
   ensure(object!.size === stored!.size, 'Stored file size does not match the catalog.', 503);
   if (req.method === 'GET')
     await env.DB.prepare(

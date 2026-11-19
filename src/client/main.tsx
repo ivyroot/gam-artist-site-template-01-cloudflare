@@ -449,7 +449,7 @@ function Detail({ work: w, data, user, busy, act, signIn, setNotice }: Common & 
                   ? 'Included in your collection.'
                   : w.kind === 'collection'
                     ? 'Your collection is ready to download.'
-                    : 'The original is yours to download and display.'}
+                    : 'The artwork is yours to download and display.'}
               </h2>
               {currentOwnership && !currentOwnership.viaCollection && (
                 <p>
@@ -464,7 +464,7 @@ function Detail({ work: w, data, user, busy, act, signIn, setNotice }: Common & 
                 Open Download Page ↓
               </a>
               <p className="fine">
-                No additional purchase is needed to download your original
+                No additional purchase is needed to download your artwork
                 {w.kind === 'collection' ? 's' : ''}.
               </p>
             </section>
@@ -703,7 +703,7 @@ function Library({ data, user, busy, signIn, act }: Omit<Common, 'setNotice'>) {
     <section className="page">
       <p className="eyebrow">YOURS TO KEEP</p>
       <h1>Your library.</h1>
-      <p>Return to your originals. New works in your collections are included.</p>
+      <p>Return to your artworks. New works in your collections are included.</p>
       {!user.address ? (
         <div className="empty">
           <h2>A wallet is your library card.</h2>
@@ -774,7 +774,7 @@ function Downloads({
     try {
       for (const w of result.members.filter((w: Work) => !result.downloaded.includes(w.id))) {
         setProgress(`Downloading ${w.title}…`);
-        // Native navigation streams to the browser download manager; never buffer originals.
+        // Native navigation streams to the browser download manager; never buffer artwork files.
         const a = document.createElement('a');
         a.href = `/download/${w.id}/file`;
         a.download = '';
@@ -796,11 +796,11 @@ function Downloads({
       <a className="back" href="/library">
         ← Your library
       </a>
-      <p className="eyebrow">THE ORIGINALS</p>
+      <p className="eyebrow">YOUR ARTWORK</p>
       <h1>{result?.work.title ?? 'Your downloads.'}</h1>
       {!user.address ? (
         <button className="primary" disabled={!data.config.ready} onClick={() => signIn()}>
-          Sign in to access originals ↗
+          Sign in to access your artwork ↗
         </button>
       ) : error ? (
         <div role="alert" className="message error">
@@ -818,7 +818,7 @@ function Downloads({
         <p>Checking your license on Tezos…</p>
       ) : kind === 'collection' ? (
         <>
-          <p>Current collection contents. Each work is delivered as its own original file.</p>
+          <p>Current collection contents. Each artwork is delivered as a separate file.</p>
           <button
             className="primary"
             disabled={Boolean(progress.startsWith('Downloading'))}
@@ -847,10 +847,10 @@ function Downloads({
             {result.file.name} · {(result.file.size / 1024 / 1024).toFixed(2)} MB
           </p>
           <a className="button primary" href={`/download/${id}/file`}>
-            Download original ↓
+            Download artwork ↓
           </a>
           <div className="verify">
-            <h2>Verify your original.</h2>
+            <h2>Verify your artwork.</h2>
             <p>Compare the output below with the hash published on-chain.</p>
             <code className="hash">{result.file.hash}</code>
             {(data.config.explorer || data.config.indexer) && (
@@ -877,8 +877,8 @@ function Downloads({
               </code>
             </label>
             <p className="fine">
-              Your browser saves the file. Downloads are byte-for-byte originals; no resizing or
-              conversion.
+              Your browser saves the artwork file exactly as published by the artist, without
+              resizing or conversion.
             </p>
           </div>
         </>
@@ -1342,7 +1342,7 @@ function Inventory({
               {w.kind === 'listing' ? (
                 selectedWork ? (
                   <p className="editor-selection">
-                    <a href={`/download/${w.id}`}>View Original Download Page</a>
+                    <a href={`/download/${w.id}`}>View Artwork Download Page</a>
                   </p>
                 ) : (
                   <div className="upload-box">
