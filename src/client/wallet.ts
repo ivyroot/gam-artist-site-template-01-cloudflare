@@ -6,7 +6,7 @@ import { NetworkType, SigningType, PermissionScope } from '@ecadlabs/beacon-type
 let wallet: import('@taquito/beacon-wallet').BeaconWallet | undefined;
 let toolkit: import('@taquito/taquito').TezosToolkit | undefined;
 let fingerprint = '';
-export async function connect(c: SiteConfig) {
+export async function connect(c: SiteConfig, chooseAccount = false) {
   if (!c.ready) throw new Error('Configure this deployment before connecting a wallet.');
   const key = [c.chainId, c.rpc, c.contract].join(':');
   if (wallet && fingerprint !== key) {
@@ -23,6 +23,7 @@ export async function connect(c: SiteConfig) {
     wallet = new BeaconWallet({ name: c.name, network });
     fingerprint = key;
   }
+  if (chooseAccount) await wallet.clearActiveAccount();
   const account = await wallet.client.getActiveAccount();
   if (!account || account.network.rpcUrl !== c.rpc)
     await wallet.requestPermissions({
@@ -35,7 +36,7 @@ export async function connect(c: SiteConfig) {
   return { wallet, toolkit, address: await wallet.getPKH() };
 }
 export async function login(c: SiteConfig, role: 'buyer' | 'admin' = 'buyer') {
-  const { wallet, address } = await connect(c);
+  const { wallet, address } = await connect(c, true);
   const challenge = await api('/api/auth/challenge', { address, role });
   const result = await wallet.client.requestSignPayload({
     signingType: SigningType.MICHELINE,
@@ -55,6 +56,11 @@ export async function send(
   artistOnly = false,
 ) {
   const { toolkit, address } = await connect(c);
+  const signedIn = await api<{ address: string | null }>('/api/session');
+  if (!signedIn.address || signedIn.address !== address)
+    throw new Error(
+      'Your wallet account differs from your site sign-in. Use Switch wallet and sign in with the account you want to use.',
+    );
   if (artistOnly && address !== c.artist) throw new Error('Choose the configured artist wallet.');
   progress('Approve the transaction in your wallet…');
   const op = await toolkit.wallet
@@ -77,7 +83,12 @@ export async function send(
 }
 export async function disconnect() {
   await api('/api/auth/logout', {});
-  if (wallet) await wallet.disconnect();
+  // A page reload clears our module variable, but Beacon still has the saved account.
+  if (!wallet) {
+    const { BeaconWallet } = await import('@taquito/beacon-wallet');
+    wallet = new BeaconWallet({ name: 'GAM' });
+  }
+  await wallet.disconnect();
   wallet = undefined;
   toolkit = undefined;
 }

@@ -96,6 +96,22 @@ function App() {
             Your library
           </a>
         </nav>
+        {user.address && (
+          <button
+            disabled={busy || !data.config.ready}
+            onClick={() =>
+              act(async () => {
+                await disconnect();
+                setUser({ address: null, role: null });
+                setNotice('Choose your account in Temple, then sign the site login message.');
+                setUser(await login(data.config, 'buyer'));
+                setNotice('Signed in with the selected wallet.');
+              })
+            }
+          >
+            Switch wallet
+          </button>
+        )}
         <button
           className="wallet"
           disabled={busy || !data.config.ready}
@@ -852,10 +868,26 @@ function Inventory({
     if (user.role !== 'admin') return;
     let cancelled = false;
     api(inventoryApi('status'))
-      .then((next) => {
+      .then(async (next) => {
         if (!cancelled) setStatus(next);
+        // A fresh Inventory page already shows a new form. Give that form an ID too,
+        // preserving anything typed or selected while its chain status was loading.
+        if (!cancelled && !selectedWork && !w.id && data.sync.complete) {
+          const { id } = await api<{ id: string }>(inventoryApi('next-id'), { kind: w.kind });
+          if (!cancelled)
+            setW((current) =>
+              !current.id && current.kind === w.kind ? { ...current, id } : current,
+            );
+        }
       })
-      .catch(() => {});
+      .catch((error) => {
+        if (!cancelled)
+          setPublishError(
+            error instanceof Error
+              ? error.message
+              : 'Could not assign the next ID. Use Sync chain to retry.',
+          );
+      });
     return () => {
       cancelled = true;
     };
@@ -1143,8 +1175,8 @@ function Inventory({
                 </div>
               ) : (
                 <p className="fine">
-                  Create a new {w.kind === 'listing' ? 'artwork' : 'collection'}. Its ID is assigned
-                  automatically when you click + New {w.kind === 'listing' ? 'work' : 'collection'}.
+                  Create a new {w.kind === 'listing' ? 'artwork' : 'collection'}. An unused ID is
+                  assigned automatically.
                 </p>
               )}
               <p className="record-id">
@@ -1152,10 +1184,7 @@ function Inventory({
                   {selectedWork ? '' : 'Next '}
                   {w.kind === 'listing' ? 'Listing' : 'Collection'} ID
                 </span>
-                <strong>
-                  {w.id ||
-                    `Click + New ${w.kind === 'listing' ? 'work' : 'collection'} to assign an ID`}
-                </strong>
+                <strong>{w.id || 'Assigning ID…'}</strong>
               </p>
               <label>
                 Title (required)
@@ -1243,9 +1272,13 @@ function Inventory({
                     <h3>Private original (required)</h3>
                     <p>Choose a file, then click Upload &amp; verify original before publishing.</p>
                     <p className="fine" role="status">
-                      {w.file_hash
-                        ? 'Original verified. Ready for publication.'
-                        : 'No verified original yet. Selecting a file alone does not upload it.'}
+                      {!w.id
+                        ? 'Assigning your listing ID. Upload becomes available as soon as it is ready.'
+                        : file?.size === 0
+                          ? 'This file is empty. Choose a file with content.'
+                          : w.file_hash
+                            ? 'Original verified. Ready for publication.'
+                            : 'No verified original yet. Selecting a file alone does not upload it.'}
                     </p>
                     <input
                       type="file"
@@ -1397,7 +1430,7 @@ function Inventory({
                 {!websiteRegistered
                   ? 'Publishing locked · register website first'
                   : !w.id
-                    ? 'Choose + New work or + New collection first'
+                    ? 'Assigning next ID…'
                     : busy
                       ? 'Working…'
                       : selectedWork
