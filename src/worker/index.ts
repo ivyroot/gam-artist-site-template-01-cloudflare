@@ -2,7 +2,7 @@ import { InputError } from '../shared/model';
 import { auth } from './auth';
 import { admin } from './admin';
 import { catalog, getWork, metadata, sync } from './catalog';
-import { download, library } from './delivery';
+import { download, library, ownership } from './delivery';
 import { config, ensure, HttpError, json, publicHeaders, type Env } from './env';
 export async function route(req: Request, env: Env): Promise<Response> {
   const url = new URL(req.url),
@@ -61,6 +61,8 @@ export async function route(req: Request, env: Env): Promise<Response> {
   }
   if (path === '/api/catalog') return json(await catalog(env));
   if (path === '/api/library') return library(req, env);
+  const owned = path.match(/^\/api\/ownership\/(listing|collection)\/(\d+)$/);
+  if (owned) return ownership(req, env, owned[1] as 'listing' | 'collection', owned[2]);
   const dl = path.match(/^\/(?:api\/)?download\/(?:collection\/(\d+)|(\d+)(\/file)?)$/);
   if (dl) {
     let response: Response;

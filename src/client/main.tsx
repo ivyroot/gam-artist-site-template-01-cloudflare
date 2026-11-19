@@ -375,6 +375,36 @@ function Detail({ work: w, data, user, busy, act, signIn, setNotice }: Common & 
     [quantity, setQuantity] = useState('1'),
     [rating, setRating] = useState(''),
     [comment, setComment] = useState('');
+  const [ownership, setOwnership] = useState<{
+    key: string;
+    access: boolean;
+    viaCollection: boolean;
+    license: { personal: string; commercial: string };
+  } | null>(null);
+  const [confirmedPurchase, setConfirmedPurchase] = useState('');
+  const ownershipKey = JSON.stringify([
+    user.address,
+    data.config.chainId,
+    data.config.contract,
+    data.config.artist,
+    w?.kind,
+    w?.id,
+  ]);
+  useEffect(() => {
+    if (!user.address || !w) return;
+    let cancelled = false;
+    api<any>(`/api/ownership/${w.kind}/${w.id}`)
+      .then((result) => {
+        if (!cancelled) setOwnership({ ...result, key: ownershipKey });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [ownershipKey, data.sync.updated]);
+  const currentOwnership = ownership?.key === ownershipKey ? ownership : null;
+  const purchaseConfirmed = Boolean(user.address && confirmedPurchase === ownershipKey);
+  const hasAccess = Boolean(user.address && (purchaseConfirmed || currentOwnership?.access));
   if (!w)
     return (
       <section className="empty">
@@ -409,66 +439,111 @@ function Detail({ work: w, data, user, busy, act, signIn, setNotice }: Common & 
           </p>
           <h1>{w.title}</h1>
           <p className="description">{w.long_description || w.description}</p>
-          <div className="license-tabs">
-            <button
-              className={tier === 'personal' ? 'active' : ''}
-              onClick={() => setTier('personal')}
-            >
-              Personal display
-            </button>
-            <button
-              className={tier === 'commercial' ? 'active' : ''}
-              onClick={() => setTier('commercial')}
-            >
-              Commercial display
-            </button>
-          </div>
-          <p className="muted" id="license-terms">
-            {tier === 'personal'
-              ? 'For personal display in your own space.'
-              : 'For commercial display. Review the artist’s terms before purchase.'}
-          </p>
-          {w.terms && <p>{w.terms}</p>}
-          <div className="purchase-row">
-            <strong>
-              {tez(price)} ꜩ <small>per license</small>
-            </strong>
-            <label>
-              Quantity
-              <input
-                aria-label="License quantity"
-                type="number"
-                min="1"
-                max="1000"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-              />
-            </label>
-          </div>
-          <button
-            className="primary full"
-            disabled={busy || !data.config.ready || !w.active || BigInt(price) === 0n}
-            onClick={() =>
-              act(async () => {
-                await send(
-                  data.config,
-                  [purchase(data.config.artist, w.kind, w.id, tier, quantity, price)],
-                  setNotice,
-                );
-                setNotice('Purchase confirmed. Sign in to open your downloads.');
-              })
-            }
+          {hasAccess && (
+            <section className="purchase-confirmed" aria-label="Your purchase" role="status">
+              <p className="eyebrow">
+                {purchaseConfirmed ? 'PURCHASE CONFIRMED' : 'IN YOUR LIBRARY'}
+              </p>
+              <h2>
+                {currentOwnership?.viaCollection && !purchaseConfirmed
+                  ? 'Included in your collection.'
+                  : w.kind === 'collection'
+                    ? 'Your collection is ready to download.'
+                    : 'The original is yours to download and display.'}
+              </h2>
+              {currentOwnership && !currentOwnership.viaCollection && (
+                <p>
+                  Your display licenses: {currentOwnership.license.personal} personal ·{' '}
+                  {currentOwnership.license.commercial} commercial.
+                </p>
+              )}
+              <a
+                className="button download-action full"
+                href={`/download/${w.kind === 'collection' ? 'collection/' : ''}${w.id}`}
+              >
+                Open Download Page ↓
+              </a>
+              <p className="fine">
+                No additional purchase is needed to download your original
+                {w.kind === 'collection' ? 's' : ''}.
+              </p>
+            </section>
+          )}
+          <details
+            className="purchase-options"
+            open={!hasAccess}
+            key={`${ownershipKey}:${hasAccess}`}
           >
-            {!w.active
-              ? 'Sale closed'
-              : BigInt(price) === 0n
-                ? 'This tier is unavailable'
-                : 'Purchase this ' + w.kind + ' ↗'}
-          </button>
-          <p className="fine">
-            Wallet fees are additional. A non-transferable display license and download. No edition
-            limit. Repeat purchases are charged in full.
-          </p>
+            <summary>
+              {hasAccess ? 'Buy additional display licenses' : 'Purchase a display license'}
+            </summary>
+            <div className="license-tabs">
+              <button
+                className={tier === 'personal' ? 'active' : ''}
+                onClick={() => setTier('personal')}
+              >
+                Personal display
+              </button>
+              <button
+                className={tier === 'commercial' ? 'active' : ''}
+                onClick={() => setTier('commercial')}
+              >
+                Commercial display
+              </button>
+            </div>
+            <p className="muted" id="license-terms">
+              {tier === 'personal'
+                ? 'For personal display in your own space.'
+                : 'For commercial display. Review the artist’s terms before purchase.'}
+            </p>
+            {w.terms && <p>{w.terms}</p>}
+            <div className="purchase-row">
+              <strong>
+                {tez(price)} ꜩ <small>per license</small>
+              </strong>
+              <label>
+                Quantity
+                <input
+                  aria-label="License quantity"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                />
+              </label>
+            </div>
+            <button
+              className="primary full"
+              disabled={busy || !data.config.ready || !w.active || BigInt(price) === 0n}
+              onClick={() =>
+                act(async () => {
+                  await send(
+                    data.config,
+                    [purchase(data.config.artist, w.kind, w.id, tier, quantity, price)],
+                    setNotice,
+                  );
+                  setConfirmedPurchase(ownershipKey);
+                  setNotice('Purchase confirmed. Your downloads are ready.');
+                  api<any>(`/api/ownership/${w.kind}/${w.id}`)
+                    .then((result) => setOwnership({ ...result, key: ownershipKey }))
+                    .catch(() => {});
+                })
+              }
+            >
+              {!w.active
+                ? 'Sale closed'
+                : BigInt(price) === 0n
+                  ? 'This tier is unavailable'
+                  : hasAccess
+                    ? 'Purchase additional licenses ↗'
+                    : 'Purchase this ' + w.kind + ' ↗'}
+            </button>
+            <p className="fine">
+              Wallet fees are additional. A non-transferable display license and download. No
+              edition limit. Repeat purchases are charged in full.
+            </p>
+          </details>
           {!w.active && collections.length > 0 && (
             <p>
               Available in{' '}
@@ -479,12 +554,14 @@ function Detail({ work: w, data, user, busy, act, signIn, setNotice }: Common & 
               ))}
             </p>
           )}
-          <a
-            className="button secondary full"
-            href={`/download/${w.kind === 'collection' ? 'collection/' : ''}${w.id}`}
-          >
-            Already purchased? Open downloads ↓
-          </a>
+          {!hasAccess && (
+            <a
+              className="button secondary full"
+              href={`/download/${w.kind === 'collection' ? 'collection/' : ''}${w.id}`}
+            >
+              Already purchased? Open downloads ↓
+            </a>
+          )}
           {w.kind === 'collection' && (
             <p className="fine">
               Includes works added later. Contents can change; download access follows current

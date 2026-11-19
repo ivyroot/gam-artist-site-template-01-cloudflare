@@ -41,6 +41,18 @@ export async function library(req: Request, env: Env) {
     next: start + 20 < data.works.length ? start + 20 : null,
   });
 }
+export async function ownership(req: Request, env: Env, kind: Kind, id: string) {
+  nat(id);
+  const s = await session(req, env);
+  const data = await catalog(env);
+  getWork(data, kind, id);
+  const head = await chainHead(data.config);
+  const block = String(head.level);
+  const license = await licenses(data.config, s.address, kind, id, block);
+  const direct = has(license);
+  const access = direct || (kind === 'listing' && (await entitled(data, s.address, id, block)));
+  return json({ license, access, viaCollection: access && !direct });
+}
 export async function download(req: Request, env: Env, kind: Kind, id: string, file = false) {
   nat(id);
   const s = await session(req, env),

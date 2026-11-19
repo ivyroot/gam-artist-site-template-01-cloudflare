@@ -175,6 +175,23 @@ async function seedWork() {
     .run();
 }
 describe('private delivery', () => {
+  it('reports current ownership for the signed-in buyer, including closed sales and repeat purchases', async () => {
+    await seedWork();
+    expect((await call('/api/ownership/listing/0')).status).toBe(401);
+    const { cookie } = await signIn();
+    rpcLicense('2', '1');
+    const owned = await call('/api/ownership/listing/0', undefined, cookie);
+    expect(owned.status).toBe(200);
+    expect(await owned.json()).toMatchObject({
+      access: true,
+      viaCollection: false,
+      license: { personal: '2', commercial: '1' },
+    });
+    rpcLicense('0', '0');
+    expect(await (await call('/api/ownership/listing/0', undefined, cookie)).json()).toMatchObject({
+      access: false,
+    });
+  });
   it('lets the authenticated artist inspect and download their own original without a purchase', async () => {
     await seedWork();
     const { cookie } = await signIn('admin');
