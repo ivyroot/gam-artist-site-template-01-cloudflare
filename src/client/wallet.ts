@@ -1,3 +1,4 @@
+import './browser-polyfills';
 import type { SiteConfig } from '../shared/model';
 import type { Transaction } from '../chain/parameters';
 import { api, inventoryApi } from './api';
