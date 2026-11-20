@@ -1,3 +1,4 @@
+import { promoPage } from './promos';
 import { InputError } from '../shared/model';
 import { auth } from './auth';
 import { admin } from './admin';
@@ -11,7 +12,8 @@ export async function route(req: Request, env: Env): Promise<Response> {
   if (req.method === 'OPTIONS') {
     if (
       path === '/listings.json' ||
-      /^\/(listing|collection)\/\d+\/(listing|collection)\.json$/.test(path)
+      /^\/(listing|collection)\/\d+\/(listing|collection)\.json$/.test(path) ||
+      /^\/api\/promos\/(listing|collection)\/\d+$/.test(path)
     )
       return new Response(null, {
         status: 204,
@@ -59,6 +61,15 @@ export async function route(req: Request, env: Env): Promise<Response> {
       sessionSecret: Boolean(env.SESSION_SECRET && env.SESSION_SECRET.length >= 32),
     });
   }
+  const promos = path.match(/^\/api\/promos\/(listing|collection)\/(\d+)$/);
+  if (promos) {
+    getWork(await catalog(env), promos[1], promos[2]);
+    return json(
+      await promoPage(env, promos[1], promos[2], url.searchParams.get('after')),
+      200,
+      publicHeaders,
+    );
+  }
   if (path === '/api/catalog') return json(await catalog(env));
   if (path === '/api/library') return library(req, env);
   const owned = path.match(/^\/api\/ownership\/(listing|collection)\/(\d+)$/);
@@ -103,6 +114,7 @@ export async function route(req: Request, env: Env): Promise<Response> {
         'Content-Type': obj!.httpMetadata?.contentType ?? 'application/octet-stream',
         'Cache-Control': 'public, max-age=31536000, immutable',
         'X-Content-Type-Options': 'nosniff',
+        'Access-Control-Allow-Origin': '*',
       },
     });
   }

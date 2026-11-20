@@ -94,11 +94,28 @@ export async function catalog(env: Env): Promise<Catalog> {
     data: string;
   }>();
   const drafts = new Map(metadata.results.map((r) => [`${r.kind}:${r.id}`, JSON.parse(r.data)]));
+  // One indexed first-image lookup per published work, independent of gallery size.
+  const covers = await env.DB.prepare(
+    `SELECT json_extract(w.value,'$.kind') AS kind,
+    json_extract(w.value,'$.id') AS work_id,
+    (SELECT promo_id FROM work_promo_files l
+     WHERE l.kind=json_extract(w.value,'$.kind') AND l.work_id=json_extract(w.value,'$.id')
+     ORDER BY l.position LIMIT 1) AS id FROM json_each(?) w`,
+  )
+    .bind(JSON.stringify(projection.works.map(({ kind, id }) => ({ kind, id }))))
+    .all<{ kind: string; work_id: string; id: string | null }>();
+  const coverMap = new Map(
+    covers.results.filter((r) => r.id).map((r) => [`${r.kind}:${r.work_id}`, r.id]),
+  );
   const works = projection.works.map((w) => {
     const d = drafts.get(`${w.kind}:${w.id}`) ?? {};
     return {
       ...w,
-      preview: d.preview,
+      preview: coverMap.has(`${w.kind}:${w.id}`)
+        ? `/previews/${coverMap.get(`${w.kind}:${w.id}`)}`
+        : !c.ready && d.preview?.startsWith('/samples/')
+          ? d.preview
+          : undefined,
       long_description: d.long_description,
       order: d.order,
       replaces: d.replaces,
@@ -163,6 +180,7 @@ export function metadata(data: Catalog, w: Work) {
     previews: w.preview
       ? [{ url: new URL(w.preview, data.config.origin).href, kind: 'image', alt: w.title }]
       : [],
+    promotional_images: `${data.config.origin}/api/promos/${w.kind}/${w.id}`,
     long_description: w.long_description ?? '',
     tags: w.tags ?? [],
     // The public description is not an R2 key, download URL or entitlement.

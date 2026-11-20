@@ -1250,3 +1250,51 @@ legend {
     transition: none !important;
   }
 }
+
+.promo-gallery {
+  width: 100%;
+}
+.detail-art .promo-main {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+.promo-thumbnails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.promo-thumbnails button {
+  padding: 3px;
+}
+.detail-art .promo-thumbnails img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+}
+.promo-thumbnails button[aria-pressed='true'] {
+  outline: 2px solid var(--orange);
+}
+.promo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+.promo-grid img {
+  width: 100%;
+  height: 130px;
+  object-fit: contain;
+}
+.promo-grid p {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.promo-grid button {
+  font-size: 11px;
+  margin: 3px 0;
+}
+.promo-library {
+  min-width: 0;
+}

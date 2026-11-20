@@ -1,3 +1,4 @@
+import promoMigration from '../migrations/0003_promo_files.sql?raw';
 import { beforeAll, describe, expect, inject, it, vi } from 'vitest';
 import { env } from 'cloudflare:test';
 import { TezosToolkit, OpKind } from '@taquito/taquito';
@@ -136,6 +137,7 @@ describe.skipIf(!settings.enabled)('live TezBox GAM + actual Worker routes', () 
     } as Env;
     await live.DB.exec(migration);
     await live.DB.exec(sourceMigration);
+    await live.DB.exec(promoMigration);
     await live.DB.batch(
       ['events', 'drafts', 'files', 'uploads', 'sessions', 'challenges', 'downloads'].map((t) =>
         live.DB.prepare(`DELETE FROM ${t}`),

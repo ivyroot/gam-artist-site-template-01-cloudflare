@@ -1,3 +1,4 @@
+import { PromoGallery, PromoLibrary } from './promos';
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { api, inventoryApi, uploadOriginal } from './api';
@@ -425,11 +426,7 @@ function Detail({ work: w, data, user, busy, act, signIn, setNotice }: Common & 
       </a>
       <section className="detail">
         <div className="detail-art">
-          {w.preview ? (
-            <img src={w.preview} alt={w.title} />
-          ) : (
-            <div className="art-placeholder">✳</div>
-          )}
+          <PromoGallery work={w} />
         </div>
         <div>
           <p className="eyebrow">
@@ -1123,6 +1120,7 @@ function Inventory({
               )}
             </p>
           </section>
+          <PromoLibrary onChange={reload} />
           <div className="admin-layout">
             <aside>
               <h3>Your catalog</h3>
@@ -1420,28 +1418,7 @@ function Inventory({
                   </p>
                 </fieldset>
               )}
-              <label>
-                Public preview (PNG, JPEG, WebP, AVIF)
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/avif"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f)
-                      act(async () => {
-                        const r = await fetch(inventoryApi('preview'), {
-                          method: 'POST',
-                          headers: { 'Content-Type': f.type },
-                          body: f,
-                        });
-                        const d: any = await r.json();
-                        if (!r.ok) throw new Error(d.error);
-                        change('preview', d.url);
-                      });
-                  }}
-                />
-              </label>
-              {w.preview && <img className="preview-thumb" src={w.preview} alt="Public preview" />}
+              <PromoLibrary key={`${w.kind}:${w.id}`} work={w} onChange={reload} />
               <label>
                 License terms / display conditions
                 <textarea value={w.terms ?? ''} onChange={(e) => change('terms', e.target.value)} />

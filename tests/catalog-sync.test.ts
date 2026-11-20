@@ -1,3 +1,4 @@
+import promoMigration from '../migrations/0003_promo_files.sql?raw';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { env } from 'cloudflare:test';
 import { InMemorySigner } from '@taquito/signer';
@@ -105,10 +106,18 @@ beforeEach(async () => {
   live = { ...env, SITE_CONFIG: JSON.stringify(settings) } as Env;
   await live.DB.exec(initial);
   await live.DB.exec(migration);
+  await live.DB.exec(promoMigration);
   await live.DB.batch(
-    ['event_origins', 'events', 'catalog_state', 'locks', 'drafts', 'files'].map((t) =>
-      live.DB.prepare(`DELETE FROM ${t}`),
-    ),
+    [
+      'work_promo_files',
+      'promo_files',
+      'event_origins',
+      'events',
+      'catalog_state',
+      'locks',
+      'drafts',
+      'files',
+    ].map((t) => live.DB.prepare(`DELETE FROM ${t}`)),
   );
   await live.DB.prepare(
     'UPDATE sync SET cursor=0,level=0,block_hash=NULL,updated=NULL WHERE id=1',

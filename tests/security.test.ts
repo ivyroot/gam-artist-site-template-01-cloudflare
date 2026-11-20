@@ -1,3 +1,4 @@
+import promoMigration from '../migrations/0003_promo_files.sql?raw';
 import { beforeAll, beforeEach, describe, it, expect, vi } from 'vitest';
 import { env } from 'cloudflare:test';
 import { InMemorySigner } from '@taquito/signer';
@@ -54,12 +55,21 @@ beforeAll(async () => {
   } as Env;
   await live.DB.exec(migration);
   await live.DB.exec(sourceMigration);
+  await live.DB.exec(promoMigration);
 });
 beforeEach(async () => {
   await live.DB.batch(
-    ['challenges', 'sessions', 'events', 'files', 'downloads', 'drafts', 'rate_limits'].map((t) =>
-      live.DB.prepare(`DELETE FROM ${t}`),
-    ),
+    [
+      'work_promo_files',
+      'promo_files',
+      'challenges',
+      'sessions',
+      'events',
+      'files',
+      'downloads',
+      'drafts',
+      'rate_limits',
+    ].map((t) => live.DB.prepare(`DELETE FROM ${t}`)),
   );
   vi.restoreAllMocks();
   vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network disabled in tests'));
@@ -505,5 +515,133 @@ describe('optional on-chain artist name', () => {
     const response = await call('/api/catalog');
     expect(response.status).toBe(200);
     expect(((await response.json()) as any).artistName).toBeNull();
+  });
+});
+
+describe('independent promotional library', () => {
+  async function upload(cookie: string) {
+    const r = await worker.fetch(
+      new Request(origin + '/private-stockroom/api/promo/upload?name=promo.png', {
+        method: 'POST',
+        headers: { Origin: origin, Cookie: cookie, 'Content-Type': 'image/png' },
+        body: new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]),
+      }),
+      live,
+    );
+    expect(r.status).toBe(200);
+    return (await r.json()) as any;
+  }
+  it('requires artist authorization and same origin for promotional writes', async () => {
+    expect((await call('/private-stockroom/api/promo/list', {})).status).toBe(401);
+    const buyer = await signIn();
+    expect((await call('/private-stockroom/api/promo/list', {}, buyer.cookie)).status).toBe(403);
+    const artist = await signIn('admin');
+    expect(
+      (
+        await worker.fetch(
+          request('/private-stockroom/api/promo/list', {}, artist.cookie, 'https://other.example'),
+          live,
+        )
+      ).status,
+    ).toBe(403);
+  });
+  it('uploads without a work or sale, reuses images, updates cover and captions, and unlinks without deleting', async () => {
+    const { cookie } = await signIn('admin');
+    const first = await upload(cookie),
+      second = await upload(cookie);
+    expect((await call(first.url)).status).toBe(200);
+    expect(
+      ((await (await call('/private-stockroom/api/promo/list', {}, cookie)).json()) as any).files,
+    ).toHaveLength(2);
+    for (const [kind, work_id, id] of [
+      ['listing', '0', first.id],
+      ['listing', '0', second.id],
+      ['collection', '4', first.id],
+    ]) {
+      expect(
+        (await call('/private-stockroom/api/promo/link', { kind, work_id, id }, cookie)).status,
+      ).toBe(200);
+    }
+    await call(
+      '/private-stockroom/api/promo/cover',
+      { kind: 'listing', work_id: '0', id: second.id },
+      cookie,
+    );
+    await call(
+      '/private-stockroom/api/promo/caption',
+      { id: second.id, alt: 'Studio detail' },
+      cookie,
+    );
+    await seedWork();
+    const r = await call('/api/promos/listing/0');
+    expect(r.headers.get('Access-Control-Allow-Origin')).toBe('*');
+    const page = (await r.json()) as any;
+    expect(page.files.map((f: any) => f.id)).toEqual([second.id, first.id]);
+    expect(page.files[0].alt).toBe('Studio detail');
+    expect(JSON.stringify(page)).not.toContain('object_key');
+    const catalog = (await (await call('/api/catalog')).json()) as any;
+    expect(catalog.works[0].preview).toBe(second.url);
+    expect(
+      (await call('/private-stockroom/api/promo/delete', { id: first.id }, cookie)).status,
+    ).toBe(409);
+    await call(
+      '/private-stockroom/api/promo/unlink',
+      { kind: 'listing', work_id: '0', id: second.id },
+      cookie,
+    );
+    expect((await call(second.url)).status).toBe(200);
+    expect(((await (await call('/api/catalog')).json()) as any).works[0].preview).toBe(first.url);
+    expect((await call('/api/promos/collection/4')).status).toBe(404);
+  });
+  it('pages through more than 100 linked files without truncation or private references', async () => {
+    await seedWork();
+    for (let i = 0; i < 130; i++) {
+      const id = `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`;
+      await live.DB.batch([
+        live.DB.prepare('INSERT INTO promo_files VALUES(?,?,?,?,?,?,?)').bind(
+          id,
+          id,
+          'promo.png',
+          'image/png',
+          8,
+          '',
+          i,
+        ),
+        live.DB.prepare(
+          "INSERT INTO work_promo_files(kind,work_id,promo_id) VALUES('listing','0',?)",
+        ).bind(id),
+      ]);
+    }
+    let after: string | null = null;
+    const ids: string[] = [];
+    do {
+      const r = await call(`/api/promos/listing/0${after ? `?after=${after}` : ''}`);
+      expect(r.status).toBe(200);
+      const p = (await r.json()) as any;
+      expect(p.files.length).toBeLessThanOrEqual(25);
+      ids.push(...p.files.map((f: any) => f.id));
+      after = p.next;
+    } while (after);
+    expect(ids).toHaveLength(130);
+    expect(new Set(ids).size).toBe(130);
+    expect((await call('/api/promos/listing/0?after=nope')).status).toBe(400);
+  });
+  it('migrates legacy previews once and does not resurrect removed images', async () => {
+    const preview = '/previews/00000000-0000-4000-8000-000000000000';
+    await live.DB.prepare("INSERT INTO drafts VALUES('listing','8',?)")
+      .bind(JSON.stringify({ preview, title: 'Legacy' }))
+      .run();
+    await live.DB.exec(promoMigration);
+    const link = (await live.DB.prepare(
+      "SELECT * FROM work_promo_files WHERE work_id='8'",
+    ).first()) as any;
+    expect(link.promo_id).toBe(preview.slice(10));
+    await live.DB.prepare("DELETE FROM work_promo_files WHERE work_id='8'").run();
+    await live.DB.exec(promoMigration);
+    expect(
+      await live.DB.prepare("SELECT * FROM work_promo_files WHERE work_id='8'").first(),
+    ).toBeNull();
+    const draft = (await live.DB.prepare("SELECT data FROM drafts WHERE id='8'").first()) as any;
+    expect(JSON.parse(draft.data)).toEqual({ title: 'Legacy' });
   });
 });

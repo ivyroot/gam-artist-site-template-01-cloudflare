@@ -14,7 +14,7 @@ Cloudflare configuration declares the Worker, assets, D1, two R2 buckets, sessio
 
 ## Trust and data
 
-The chain owns canonical titles, prices, activity flags, file hashes, website references, licenses, membership, and reviews. The selected TzKT or RPC event reader supplies enumeration; the site stores ordered events and reconstructs its artist/website's catalog. D1 metadata adds previews, long text, terms, tags, replacement links, and display order. Neither public metadata nor a session grants a license.
+The chain owns canonical titles, prices, activity flags, file hashes, website references, licenses, membership, and reviews. The selected TzKT or RPC event reader supplies enumeration; the site stores ordered events and reconstructs its artist/website's catalog. D1 metadata adds long text, terms, tags, replacement links, and display order. Promotional images have independent `promo_files` records and ordered `work_promo_files` associations; their bytes live in the public R2 bucket. Neither public metadata nor a session grants a license.
 
 Each private request checks the configured RPC chain ID, reads a block level, and uses GAM views at that level. A listing license is sufficient; otherwise an owned collection must currently contain the work. The local membership mirror supplies candidates only. If it is missing a recent addition, access can be temporarily delayed; stale entries cannot grant removed membership. RPC unavailability returns a retryable error instead of serving a file.
 
@@ -51,3 +51,13 @@ Listing and collection metadata use `art-sale/listing@1` and `art-sale/collectio
 ## Verification limits
 
 The fast test suite exercises runtime storage and cryptography, transaction types, and positive/negative entitlement responses. The optional live TezBox suite also signs actual operations on the existing GAM deployment and tests Worker downloads against real chain views; see `tezbox-validation.md`. Neither suite proves RPC honesty, audits the contract, certifies browser-wallet compatibility, or verifies Cloudflare account provisioning. Complete the deployment acceptance checklist before production.
+
+## Promotional image library
+
+Promotional uploads do not require a work, original, sale, website registration, chain sync, or wallet transaction beyond artist sign-in. A file can be linked to multiple listings and collections, including unpublished IDs. Linked IDs are reserved when assigning the next work ID. Captions belong to the file and apply to every use. Uploads are PNG, JPEG, WebP, or AVIF, at most 5 MiB each; there is no application limit on the number of files or associations. Normal storage capacity, costs, and request rate limits still apply.
+
+The first association in order supplies the storefront card and Open Graph cover. Moving an image to the front chooses the cover while preserving the relative order of the others. Removing an association retains the reusable file; deleting a library file requires removing all its associations first. Previously cached public image URLs may remain available after deletion.
+
+Artist APIs under the configured Inventory path manage uploads, captions, associations, and covers immediately. Public `/api/promos/{listing|collection}/{id}` lists only images linked to a published work, in pages of 25 with an opaque `next` cursor passed as `after`. Entries include relative public URLs, captions, filenames, media types, sizes, and creation times. Listing/collection JSON advertises this paginated feed in `promotional_images`; its existing `previews` field remains a cover summary. The catalog carries only a cover reference per work, keeping catalog payloads independent of gallery size. Public image bytes are accessible to anyone who has their URL, including images not yet linked to published works; the complete library listing requires artist authorization.
+
+Migration `0003_promo_files.sql` imports existing uploaded previews and removes their old draft references. It preserves R2 objects and keeps links independent of subsequent draft saves. Legacy imports have unknown size and media type in D1; actual delivery retains the object's R2 content type. Sample static previews remain supported in unconfigured local demos. Back up D1 and both R2 buckets together: promotional associations and captions cannot be reconstructed from chain events.

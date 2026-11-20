@@ -34,7 +34,7 @@ The sample artworks have high-resolution JPEG originals for delivery and smaller
 - All eight canonical public/metadata/download routes from the GAM whitepaper, plus artist admin and buyer APIs.
 - Wallet transactions using the actual GAM parameter layout, integer mutez arithmetic, and UTF-8 bytes.
 - One-time signed wallet challenges, host-only signed session cookies, role checks, origin checks, rate limits, and logout revocation.
-- Artist registration, multipart original upload, server-side SHA-256 verification, immutable file catalog, previews, metadata, listing edits, and collection membership batches.
+- Artist registration, multipart original upload, server-side SHA-256 verification, immutable file catalog, an independent promotional image library with reusable files, paginated galleries, captions and cover selection, metadata, listing edits, and collection membership batches.
 - Direct-license or current-collection-license checks through RPC views before private downloads; original file streaming and verification commands.
 - Configurable TzKT or direct-RPC event ingestion with checkpoints, a sync lock, replay/rebuild on detected reorganization, deployed five-minute scheduling, and automatic local development sync.
 - Local Workers runtime tests, generated binding types, and explicit local and Cloudflare modes with separate testnet/mainnet resources.

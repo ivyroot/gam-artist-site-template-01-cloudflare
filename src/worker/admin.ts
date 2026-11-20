@@ -1,3 +1,4 @@
+import { promoAdmin } from './promos';
 import { createHash } from 'node:crypto';
 import { validateAddress, ValidationResult } from '@taquito/utils';
 import { nat, type Work } from '../shared/model';
@@ -57,7 +58,6 @@ export function validateWork(v: Work): Work {
     website_id: v.website_id,
     active: v.active,
     file_hash: v.file_hash,
-    preview: v.preview,
     long_description: v.long_description,
     members: v.members,
     replaces: v.replaces,
@@ -71,13 +71,15 @@ export function validateWork(v: Work): Work {
 export async function admin(req: Request, env: Env, path: string) {
   const s = await session(req, env, true);
   if (req.method !== 'GET') sameOrigin(req, env);
-  await rateLimit(env, `admin:${s.address}`, 120);
+  const promotional = path.startsWith('/api/admin/promo/');
+  await rateLimit(env, `${promotional ? 'promo' : 'admin'}:${s.address}`, promotional ? 600 : 120);
   const c = config(env);
   ensure(
     validateAddress(c.artist) === ValidationResult.VALID,
     'Configure a valid artist address.',
     503,
   );
+  if (path.startsWith('/api/admin/promo/')) return promoAdmin(req, env, path);
   if (path === '/api/admin/status') {
     const files = await env.DB.prepare('SELECT listing_id,name,size,hash FROM files').all();
     const drafts = await env.DB.prepare('SELECT kind,id,data FROM drafts').all();
@@ -114,6 +116,12 @@ export async function admin(req: Request, env: Env, path: string) {
       .all<{ id: string }>();
     const ids = events.results.map(({ payload }) => JSON.parse(payload)[`${kind}_id`]);
     ids.push(...drafts.results.map(({ id }) => id));
+    const promoIds = await env.DB.prepare(
+      'SELECT DISTINCT work_id FROM work_promo_files WHERE kind=?',
+    )
+      .bind(kind)
+      .all<{ work_id: string }>();
+    ids.push(...promoIds.results.map(({ work_id }) => work_id));
     if (kind === 'listing') {
       const files = await env.DB.prepare(
         'SELECT listing_id FROM files UNION SELECT listing_id FROM uploads',
@@ -213,15 +221,7 @@ export async function admin(req: Request, env: Env, path: string) {
       .run();
     return json({ ok: true });
   }
-  if (path === '/api/admin/preview') {
-    ensure(req.method === 'POST', 'Use POST.', 405);
-    const type = req.headers.get('Content-Type') ?? '';
-    ensure(/^image\/(png|jpeg|webp|avif)$/.test(type), 'Preview must be PNG, JPEG, WebP, or AVIF.');
-    const blob = await boundedBytes(req, 5 * 1024 * 1024);
-    const id = crypto.randomUUID();
-    await env.PREVIEWS.put(id, blob, { httpMetadata: { contentType: type } });
-    return json({ url: `/previews/${id}` });
-  }
+  if (path === '/api/admin/preview') return promoAdmin(req, env, '/api/admin/promo/upload');
   if (path === '/api/admin/upload/start') {
     const v = await body<{ id: string; name: string; type: string }>(req);
     nat(v.id);
