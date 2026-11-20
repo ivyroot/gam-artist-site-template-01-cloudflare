@@ -146,7 +146,6 @@ export async function websiteRegistration(env: Env) {
   const state = await env.DB.prepare('SELECT identity FROM catalog_state WHERE id=1').first<{
     identity: string;
   }>();
-  const status = await syncStatus(env);
   const usable = state?.identity === catalogIdentity(c);
   const rows = usable
     ? await env.DB.prepare(
@@ -157,7 +156,9 @@ export async function websiteRegistration(env: Env) {
     .map((row) => JSON.parse(row.payload))
     .find((event) => event.artist === c.artist && String(event.website_id) === c.websiteId);
   const url: string | null = prior?.url ?? null;
-  const registered = Boolean(status.complete && url === c.origin);
+  // Recorded registration remains visible while newer history is catching up.
+  // Publication separately requires complete sync before trusting this state.
+  const registered = Boolean(url === c.origin);
   const timestamp = prior?.timestamp;
   const date =
     timestamp == null

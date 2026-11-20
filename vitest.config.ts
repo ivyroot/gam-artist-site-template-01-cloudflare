@@ -38,7 +38,7 @@ export default defineConfig({
     }),
   ],
   test: {
-    include: ['tests/**/*.test.ts'],
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     fileParallelism: false,
     testTimeout: 120000,
     hookTimeout: 120000,

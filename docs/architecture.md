@@ -10,7 +10,7 @@ The implementation follows the October 26 GAM plan and the November 10 Cloudflar
 - `src/shared`: public data types, UTF-8 encoding, and exact tez/mutez conversion.
 - `migrations`: D1 schema. `scripts`: local-only migration and sample-catalog commands.
 
-Cloudflare configuration declares the Worker, assets, D1, two R2 buckets, session secret, and schedule. The public preview bucket is served through `/previews/{id}`; the originals bucket is never exposed as a public bucket. Native browser downloads are authorized streams from `/download/{id}/file`.
+Cloudflare configuration declares the Worker, assets, D1, two R2 buckets, session secret, and schedule. The public preview bucket is served through `/previews/{id}`; the originals bucket is never exposed as a public bucket. Native browser downloads are authorized streams from `/download/{id}/file`. The `/download/{id}` and `/download/collection/{id}` pages serve a public, non-cacheable storefront shell. Their authenticated JSON APIs supply protected details; the page presents sign-in, missing-license, unavailable-artwork, and service-error states with recovery actions. API errors retain their HTTP status and JSON format, and file streams still enforce authorization on every request.
 
 ## Trust and data
 
@@ -22,7 +22,7 @@ Catalog synchronization is source-aware. TzKT reads up to five 200-event pages; 
 
 A renewable D1 lease serializes scheduled/manual syncs. Checkpoint hashes and parent continuity detect reorganizations. Rebuilds clear only chain-derived events/provenance, preserving originals and metadata. `catalog_state` binds cursors to chain, contract, artist, source, start block and TzKT endpoint; switching identities rebuilds history. The first migrated TzKT run adopts existing cursors. Inventory preparation refuses incomplete catch-up. Catalog presentation trusts the selected source; delivery still verifies live chain views.
 
-Deployed Workers retain five-minute scheduled sync. A Vite development plugin invokes the local runtime’s scheduled handler serially about every ten seconds after server startup; it uses the pinned Cloudflare Local Explorer API and exposes no application sync endpoint. Its timer stops with the server. Local storefronts refresh catalog data every ten seconds. Source errors appear in Inventory status and Worker logs. See [catalog sources](catalog-sources.md).
+Deployed Workers retain five-minute scheduled sync. A Vite development plugin invokes the local runtime’s scheduled handler serially after server startup, continuing local simulated RPC catch-up after a 100 ms pause and returning to ten-second polling once caught up or on error; it uses the pinned Cloudflare Local Explorer API and exposes no application sync endpoint. Its timer stops with the server. Local storefronts refresh catalog data every ten seconds. Source errors appear in Inventory status and Worker logs. See [catalog sources](catalog-sources.md).
 
 ## Inventory routing
 

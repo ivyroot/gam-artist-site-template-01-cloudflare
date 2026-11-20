@@ -11,7 +11,7 @@
     "dev": "node scripts/site.mjs dev",
     "build": "node scripts/site.mjs build",
     "typecheck": "npm run types && tsc --noEmit",
-    "test": "node --test tests/site-config.test.mjs && vitest run",
+    "test": "node --test tests/*.test.mjs && vitest run",
     "check": "npm run typecheck && npm test && npm run build",
     "deploy": "npm run typecheck && node scripts/site.mjs deploy",
     "deploy:dry-run": "node scripts/site.mjs deploy:dry-run",

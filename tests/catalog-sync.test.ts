@@ -521,3 +521,20 @@ it('calculates next IDs across the artist websites and reserved originals withou
   await live.DB.prepare("INSERT INTO drafts VALUES('collection','7','{}')").run();
   expect(await next('collection')).toBe('8');
 });
+
+it('retains the recorded website registration date while newer chain history is catching up', async () => {
+  vi.spyOn(Schema.prototype, 'Execute').mockReturnValue({
+    artist,
+    website_id: '0',
+    url: settings.origin,
+    timestamp: '2026-11-19T04:23:07.000Z',
+  });
+  await sync(live);
+  await live.DB.prepare('UPDATE catalog_state SET complete=0').run();
+  expect((await syncStatus(live)).complete).toBe(false);
+  expect(await websiteRegistration(live)).toEqual({
+    registered: true,
+    url: settings.origin,
+    registeredAt: '2026-11-19T04:23:07.000Z',
+  });
+});

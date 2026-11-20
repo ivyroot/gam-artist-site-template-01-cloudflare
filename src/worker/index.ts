@@ -76,32 +76,10 @@ export async function route(req: Request, env: Env): Promise<Response> {
   if (owned) return ownership(req, env, owned[1] as 'listing' | 'collection', owned[2]);
   const dl = path.match(/^\/(?:api\/)?download\/(?:collection\/(\d+)|(\d+)(\/file)?)$/);
   if (dl) {
-    let response: Response;
-    try {
-      response = await download(
-        req,
-        env,
-        dl[1] ? 'collection' : 'listing',
-        dl[1] ?? dl[2],
-        Boolean(dl[3]),
-      );
-    } catch (e) {
-      if (
-        e instanceof HttpError &&
-        e.status === 401 &&
-        !path.startsWith('/api/') &&
-        !dl[3] &&
-        req.headers.get('Accept')?.includes('text/html')
-      ) {
-        return Response.redirect(
-          new URL(`/library?next=${encodeURIComponent(path)}`, req.url).href,
-          302,
-        );
-      }
-      throw e;
-    }
-    if (path.startsWith('/api/') || dl[3] || !response.ok) return response;
-    return shell(req, env);
+    // This page contains no protected data. React requests the authenticated
+    // download API and presents sign-in/access errors inside the storefront.
+    if (!path.startsWith('/api/') && !dl[3]) return shell(req, env);
+    return download(req, env, dl[1] ? 'collection' : 'listing', dl[1] ?? dl[2], Boolean(dl[3]));
   }
   if (path.startsWith('/download/') || path.startsWith('/api/download/'))
     throw new HttpError(404, 'Download route not found.');

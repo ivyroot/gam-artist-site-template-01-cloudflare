@@ -1,3 +1,11 @@
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message);
+  }
+}
 export async function api<T = any>(path: string, body?: unknown, method?: string): Promise<T> {
   const r = await fetch(path, {
     method: method ?? (body === undefined ? 'GET' : 'POST'),
@@ -5,7 +13,7 @@ export async function api<T = any>(path: string, body?: unknown, method?: string
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data: any = await r.json();
-  if (!r.ok) throw new Error(data.error ?? `Request failed (${r.status})`);
+  if (!r.ok) throw new ApiError(data.error ?? `Request failed (${r.status})`, r.status);
   return data;
 }
 export function inventoryApi(action: string): string {

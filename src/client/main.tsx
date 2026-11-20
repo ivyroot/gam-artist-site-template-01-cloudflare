@@ -1,7 +1,9 @@
+import { DownloadProblem } from './download-problem';
+import { WebsiteRegistration } from './website-registration';
 import { PromoGallery, PromoLibrary } from './promos';
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { api, inventoryApi, uploadOriginal } from './api';
+import { ApiError, api, inventoryApi, uploadOriginal } from './api';
 import { login, disconnect, send } from './wallet';
 import { purchase, review } from '../chain/parameters';
 import { mutez, short, tez, type Catalog, type Work, type Kind, type Tier } from '../shared/model';
@@ -757,17 +759,30 @@ function Downloads({
   signIn: Common['signIn'];
 }) {
   const [result, setResult] = useState<any>(null),
-    [error, setError] = useState(''),
+    [error, setError] = useState<{ message: string; status?: number } | null>(null),
     [progress, setProgress] = useState('');
-  const load = () =>
-    api(`/api/download/${kind === 'collection' ? 'collection/' : ''}${id}`)
-      .then(setResult)
-      .catch((e) => setError(e.message));
+  const [attempt, setAttempt] = useState(0);
+  const load = () => api(`/api/download/${kind === 'collection' ? 'collection/' : ''}${id}`);
   useEffect(() => {
-    if (user.address) load();
-  }, [user.address, kind, id]);
+    let cancelled = false;
+    setResult(null);
+    setError(null);
+    setProgress('');
+    if (user.address)
+      load()
+        .then((value) => {
+          if (!cancelled) setResult(value);
+        })
+        .catch((e) => {
+          if (!cancelled)
+            setError({ message: e.message, status: e instanceof ApiError ? e.status : undefined });
+        });
+    return () => {
+      cancelled = true;
+    };
+  }, [user.address, kind, id, attempt]);
   async function allNew() {
-    setError('');
+    setError(null);
     try {
       for (const w of result.members.filter((w: Work) => !result.downloaded.includes(w.id))) {
         setProgress(`Downloading ${w.title}…`);
@@ -783,9 +798,12 @@ function Downloads({
       setProgress(
         'Downloads requested. Check your browser’s downloads; it may ask to allow multiple files.',
       );
-      await load();
+      setResult(await load());
     } catch (e) {
-      setError((e as Error).message);
+      setError({
+        message: (e as Error).message,
+        status: e instanceof ApiError ? e.status : undefined,
+      });
     }
   }
   return (
@@ -795,22 +813,16 @@ function Downloads({
       </a>
       <p className="eyebrow">YOUR ARTWORK</p>
       <h1>{result?.work.title ?? 'Your downloads.'}</h1>
-      {!user.address ? (
-        <button className="primary" disabled={!data.config.ready} onClick={() => signIn()}>
-          Sign in to access your artwork ↗
-        </button>
-      ) : error ? (
-        <div role="alert" className="message error">
-          {error}
-          <button
-            onClick={() => {
-              setError('');
-              load();
-            }}
-          >
-            Retry
-          </button>
-        </div>
+      {!user.address || error ? (
+        <DownloadProblem
+          kind={kind}
+          id={id}
+          status={!user.address ? 401 : error?.status}
+          message={error?.message}
+          signIn={() => signIn()}
+          retry={() => setAttempt((n) => n + 1)}
+          ready={data.config.ready}
+        />
       ) : !result ? (
         <p>Checking your license on Tezos…</p>
       ) : kind === 'collection' ? (
@@ -965,8 +977,9 @@ function Inventory({
     return () => {
       cancelled = true;
     };
-  }, [user.role, data.sync.updated]);
-  const websiteRegistered = Boolean(data.sync.complete && status?.website?.registered);
+  }, [user.role, data.sync.updated, data.sync.complete]);
+  const websiteRegistered = Boolean(status?.website?.registered);
+  const publicationReady = Boolean(data.sync.complete && websiteRegistered);
   const change = (field: keyof Work, value: unknown) => setW((old) => ({ ...old, [field]: value }));
   return (
     <section className="page admin">
@@ -1057,69 +1070,26 @@ function Inventory({
               Update artist name in wallet ↗
             </button>
           </details>
-          <section className="setup-card" aria-labelledby="website-registration-heading">
-            <p className="eyebrow">
-              {websiteRegistered ? 'READY TO PUBLISH' : 'REQUIRED BEFORE PUBLISHING'}
-            </p>
-            <h2 id="website-registration-heading">Website registration</h2>
-            <p role="status">
-              {websiteRegistered
-                ? 'This website is registered. You can publish works and collections.'
-                : !data.sync.complete
-                  ? 'Checking confirmed website registration. Publishing stays locked until chain sync finishes.'
-                  : status?.website?.url && status.website.url !== data.config.origin
-                    ? 'This website ID is registered to a different address. Correct the website configuration before publishing.'
-                    : 'Register this website on-chain before publishing your first work or collection.'}
-            </p>
-            <p>
-              Website address: <strong>{data.config.origin}</strong> · Website ID{' '}
-              {data.config.websiteId}
-            </p>
-            {!websiteRegistered && (
-              <button
-                className="primary"
-                disabled={
-                  busy ||
-                  !data.sync.complete ||
-                  !status ||
-                  Boolean(status.website?.url && status.website.url !== data.config.origin)
-                }
-                onClick={() =>
-                  act(async () => {
-                    const r = await api(inventoryApi('prepare/website'), {
-                      websiteId: data.config.websiteId,
-                    });
-                    await send(data.config, r.transactions, setNotice, true);
-                    await api(inventoryApi('sync'), {});
-                    await refresh();
-                    setNotice(
-                      'Website transaction confirmed. Publishing unlocks when confirmed registration is synced.',
-                    );
-                  })
-                }
-              >
-                Register this website in wallet ↗
-              </button>
-            )}
-            <p className="fine">
-              {websiteRegistered && status?.website?.registeredAt ? (
-                <>
-                  Registered on{' '}
-                  <time dateTime={status.website.registeredAt}>
-                    {new Date(status.website.registeredAt).toLocaleDateString('en-US', {
-                      month: '2-digit',
-                      day: '2-digit',
-                      year: 'numeric',
-                    })}
-                  </time>
-                </>
-              ) : websiteRegistered ? (
-                'Website registration confirmed.'
-              ) : (
-                'Register once for this website. Website registration is separate from your artist name. A listing’s website ID becomes fixed when published.'
-              )}
-            </p>
-          </section>
+          <WebsiteRegistration
+            website={status?.website}
+            syncComplete={Boolean(data.sync.complete)}
+            busy={busy}
+            origin={data.config.origin}
+            websiteId={data.config.websiteId}
+            register={() =>
+              act(async () => {
+                const r = await api(inventoryApi('prepare/website'), {
+                  websiteId: data.config.websiteId,
+                });
+                await send(data.config, r.transactions, setNotice, true);
+                await api(inventoryApi('sync'), {});
+                await refresh();
+                setNotice(
+                  'Website transaction confirmed. Publishing unlocks when confirmed registration is synced.',
+                );
+              })
+            }
+          />
           <PromoLibrary onChange={reload} />
           <div className="admin-layout">
             <aside>
@@ -1180,6 +1150,12 @@ function Inventory({
                   setPublishError(`${label}: ${invalid.validationMessage}`);
                   invalid.focus();
                   invalid.reportValidity();
+                  return;
+                }
+                if (!data.sync.complete) {
+                  setPublishError(
+                    'Chain history is catching up. Wait for sync to finish before publishing.',
+                  );
                   return;
                 }
                 if (!websiteRegistered) {
@@ -1477,19 +1453,21 @@ function Inventory({
               )}
               <button
                 className="primary full"
-                disabled={busy || !websiteRegistered || !w.id}
+                disabled={busy || !publicationReady || !w.id}
                 type="submit"
                 aria-describedby="publish-requirement"
               >
-                {!websiteRegistered
-                  ? 'Publishing locked · register website first'
-                  : !w.id
-                    ? 'Assigning next ID…'
-                    : busy
-                      ? 'Working…'
-                      : selectedWork
-                        ? 'Review & save changes in wallet ↗'
-                        : 'Review & publish in wallet ↗'}
+                {!data.sync.complete
+                  ? 'Publishing locked · checking chain history'
+                  : !websiteRegistered
+                    ? 'Publishing locked · register website first'
+                    : !w.id
+                      ? 'Assigning next ID…'
+                      : busy
+                        ? 'Working…'
+                        : selectedWork
+                          ? 'Review & save changes in wallet ↗'
+                          : 'Review & publish in wallet ↗'}
               </button>
               <p className="fine" id="publish-requirement">
                 {!websiteRegistered &&

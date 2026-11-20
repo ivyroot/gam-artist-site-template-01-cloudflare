@@ -365,13 +365,36 @@ describe('artist file publishing', () => {
       ).status,
     ).toBe(400);
   });
-  it('redirects an unauthenticated download page to login without exposing private content', async () => {
-    const r = await worker.fetch(
-      new Request(origin + '/download/0', { headers: { Accept: 'text/html' } }),
-      live,
-    );
-    expect(r.status).toBe(302);
-    expect(r.headers.get('Location')).toBe(origin + '/library?next=%2Fdownload%2F0');
+  it('serves a public HTML download page while keeping metadata and bytes authenticated', async () => {
+    const pageEnv = {
+      ...live,
+      ASSETS: {
+        fetch: async () =>
+          new Response(
+            '<html><head><title>Shop</title></head><body><div id="root">Storefront</div></body></html>',
+            { headers: { 'Content-Type': 'text/html' } },
+          ),
+      },
+    } as unknown as Env;
+    for (const path of ['/download/0', '/download/collection/0']) {
+      const r = await worker.fetch(
+        new Request(origin + path, { headers: { Accept: 'text/html' } }),
+        pageEnv,
+      );
+      expect(r.status).toBe(200);
+      expect(r.headers.get('Content-Type')).toContain('text/html');
+      expect(r.headers.get('Cache-Control')).toBe('private, no-store');
+      expect(await r.text()).not.toContain('private/original');
+    }
+    expect((await call('/api/download/0')).status).toBe(401);
+    expect((await call('/download/0/file')).status).toBe(401);
+    await seedWork();
+    const { cookie } = await signIn();
+    rpcLicense('0');
+    const page = await worker.fetch(request('/download/0', undefined, cookie), pageEnv);
+    expect(page.headers.get('Content-Type')).toContain('text/html');
+    expect((await call('/api/download/0', undefined, cookie)).status).toBe(403);
+    expect((await call('/download/0/file', undefined, cookie)).status).toBe(403);
   });
 });
 

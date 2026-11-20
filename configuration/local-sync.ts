@@ -21,6 +21,7 @@ export function localSync(site: ReturnType<typeof loadSite>): Plugin {
       server.httpServer?.once('listening', () => {
         const run = async () => {
           if (stopped) return;
+          let delay = 10000;
           try {
             if (
               site.artist &&
@@ -46,6 +47,23 @@ export function localSync(site: ReturnType<typeof loadSite>): Plugin {
                 throw new Error(
                   `Local scheduled catalog sync failed (${response.status}). See Worker logs and Inventory sync status.`,
                 );
+              // Only the simulated local RPC store gets accelerated catch-up. Remote
+              // bindings retain normal polling and its existing request/cost profile.
+              if (site.storage === 'local' && site.catalogSource === 'rpc') {
+                const catalog = await fetch(new URL('/api/catalog', site.localOrigin), {
+                  signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
+                });
+                if (!catalog.ok) throw new Error('Could not read local catalog sync progress.');
+                const { sync } = (await catalog.json()) as {
+                  sync?: { complete?: boolean; error?: string | null };
+                };
+                if (typeof sync?.complete !== 'boolean')
+                  throw new Error('Local catalog returned invalid sync progress.');
+                if (sync.error) throw new Error(sync.error);
+                // Keep one run in flight. Pause briefly to yield to foreground work;
+                // never move the checkpoint ourselves or omit unscanned history.
+                if (!sync.complete) delay = 100;
+              }
               lastError = '';
             }
           } catch (error) {
@@ -53,7 +71,7 @@ export function localSync(site: ReturnType<typeof loadSite>): Plugin {
             if (!stopped && message !== lastError) server.config.logger.warn(message);
             lastError = message;
           } finally {
-            if (!stopped) timer = setTimeout(run, 10000);
+            if (!stopped) timer = setTimeout(run, delay);
           }
         };
         timer = setTimeout(run, 1500);
